@@ -1,0 +1,15 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Invalid API"
+  },
+  "paths": {
+    "/users": {
+      "get": {
+        "responses": {
+          "200": {}
+        }
+      }
+    }
+  }
+}
