@@ -1,9 +1,10 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Http;
 using Catalyst.Common.Models;
 using Catalyst.Common.Services;
-using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi.Readers;
+using Microsoft.OpenApi;
+using Microsoft.OpenApi.Reader;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using UPhoricLibrary.Common;
@@ -19,11 +20,31 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
         [Description("Path to a local JSON file or a URL to an OpenAPI specification")]
         public string Source { get; init; } = string.Empty;
 
+        [CommandOption("--language <LANGUAGE>")]
+        [Description("Output language for code generation. Options: typescript")]
+        public string? Language { get; init; }
+
+        [CommandOption("--output <PATH>")]
+        [Description("Output file path. Required when --language is specified")]
+        public string? Output { get; init; }
+
+        [CommandOption("--class-name <NAME>")]
+        [Description("Generated client name. Defaults to the API title from the OpenAPI spec")]
+        public string? ClassName { get; init; }
+
         public override ValidationResult Validate()
         {
             if (string.IsNullOrWhiteSpace(Source))
             {
                 return ValidationResult.Error("The --source option is required.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(Language))
+            {
+                if (string.IsNullOrWhiteSpace(Output))
+                {
+                    return ValidationResult.Error("The --output option is required when --language is specified.");
+                }
             }
 
             return base.Validate();
@@ -46,12 +67,40 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
             return 1;
         }
 
-        RenderOutput(
-            resolveResult.Value!.DisplayPath,
-            parseResult.Value!.Document,
-            parseResult.Value!.Diagnostic);
+        if (!string.IsNullOrWhiteSpace(settings.Language))
+        {
+            if (parseResult.Value!.Diagnostic.Errors.Count > 0)
+            {
+                AnsiConsole.MarkupLine($"[yellow]Warning:[/] OpenAPI spec has {parseResult.Value!.Diagnostic.Errors.Count} validation error(s). Generated code may be incomplete.");
+            }
 
-        if (parseResult.Value!.Diagnostic.Errors.Count > 0)
+            return ExecuteGeneration(settings, parseResult.Value!.Document);
+        }
+
+        return ExecuteValidation(resolveResult.Value!.DisplayPath, parseResult.Value!.Document, parseResult.Value!.Diagnostic);
+    }
+
+    private static int ExecuteGeneration(Settings settings, OpenApiDocument document)
+    {
+        if (settings.Language!.Equals("typescript", StringComparison.OrdinalIgnoreCase))
+        {
+            var generator = new TypeScriptGenerator(document, settings.ClassName);
+            string code = generator.Generate();
+
+            File.WriteAllText(settings.Output!, code);
+            AnsiConsole.MarkupLine($"[green]TypeScript generated:[/] {Markup.Escape(settings.Output!)}");
+            return 0;
+        }
+
+        AnsiConsole.MarkupLine($"[red]Error:[/] Unsupported language: {settings.Language}");
+        return 1;
+    }
+
+    private static int ExecuteValidation(string sourceDisplay, OpenApiDocument document, OpenApiDiagnostic diagnostic)
+    {
+        RenderOutput(sourceDisplay, document, diagnostic);
+
+        if (diagnostic.Errors.Count > 0)
         {
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[red]Validation failed with errors.[/]");
@@ -91,15 +140,15 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
             var tree = new Tree("[bold]Paths[/]")
                 .Style(new Style(Color.Blue));
 
-            foreach (KeyValuePair<string, OpenApiPathItem> path in document.Paths.OrderBy(p => p.Key))
+            foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths.OrderBy(p => p.Key))
             {
                 var pathNode = tree.AddNode($"[yellow]{Markup.Escape(path.Key)}[/]");
 
                 if (path.Value.Operations != null)
                 {
-                    foreach (KeyValuePair<OperationType, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.ToString()))
+                    foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.Method))
                     {
-                        var methodColor = operation.Key.ToString().ToUpperInvariant() switch
+                        var methodColor = operation.Key.Method.ToUpperInvariant() switch
                         {
                             "GET" => Color.Green,
                             "POST" => Color.Blue,
@@ -113,7 +162,7 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
                             ? $" - {Markup.Escape(operation.Value.Summary)}"
                             : string.Empty;
 
-                        pathNode.AddNode($"[{methodColor}]{operation.Key}[/]{summary}");
+                        pathNode.AddNode($"[{methodColor}]{operation.Key.Method}[/]{summary}");
                     }
                 }
             }

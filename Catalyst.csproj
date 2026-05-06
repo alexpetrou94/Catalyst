@@ -9,11 +9,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.OpenApi" Version="1.6.29" />
-      <PackageReference Include="Microsoft.OpenApi.Readers" Version="1.6.29" />
+      <PackageReference Include="Microsoft.OpenApi" Version="3.5.3" />
       <PackageReference Include="Spectre.Console" Version="0.55.2" />
       <PackageReference Include="Spectre.Console.Cli" Version="0.55.0" />
-      <PackageReference Include="UPhoricLibrary" Version="0.1.0" />
+      <PackageReference Include="UPhoricLibrary" Version="0.2026.121.6" />
     </ItemGroup>
 
 </Project>

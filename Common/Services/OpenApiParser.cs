@@ -1,5 +1,5 @@
 using Catalyst.Common.Models;
-using Microsoft.OpenApi.Readers;
+using Microsoft.OpenApi.Reader;
 using UPhoricLibrary.Common;
 
 namespace Catalyst.Common.Services;
@@ -10,13 +10,12 @@ internal static class OpenApiParser
     {
         try
         {
-            var reader = new OpenApiStringReader();
-            var document = reader.Read(content, out var diagnostic);
+            var result = OpenApiModelFactory.Parse(content, "json", new OpenApiReaderSettings());
 
             return Result<OpenApiParseResult>.Ok(new OpenApiParseResult
             {
-                Document = document,
-                Diagnostic = diagnostic,
+                Document = result.Document,
+                Diagnostic = result.Diagnostic,
             });
         }
         catch (Exception ex)
