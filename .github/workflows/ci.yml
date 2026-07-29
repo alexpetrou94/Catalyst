@@ -18,7 +18,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Configure private feed
-        run: dotnet nuget update source github-uphoricstudios --username USERNAME --password ${{ secrets.UPHORIC_PACKAGES_TOKEN }}
+        run: dotnet nuget update source github-uphoricstudios --username USERNAME --password ${{ secrets.UPHORIC_PACKAGES_TOKEN }} --store-password-in-clear-text
 
       - name: Restore
         run: dotnet restore
@@ -44,7 +44,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Configure private feed
-        run: dotnet nuget update source github-uphoricstudios --username USERNAME --password ${{ secrets.UPHORIC_PACKAGES_TOKEN }}
+        run: dotnet nuget update source github-uphoricstudios --username USERNAME --password ${{ secrets.UPHORIC_PACKAGES_TOKEN }} --store-password-in-clear-text
 
       - name: Pack
         run: dotnet pack --configuration Release --output ./nupkg
