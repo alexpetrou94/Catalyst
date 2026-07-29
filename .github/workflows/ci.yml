@@ -50,4 +50,4 @@ jobs:
         run: dotnet pack --configuration Release --output ./nupkg
 
       - name: Push to GitHub Packages
-        run: dotnet nuget push ./nupkg/*.nupkg --source https://nuget.pkg.github.com/alexpetrou94/index.json --username alexpetrou94 --password ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+        run: dotnet nuget push ./nupkg/*.nupkg --source https://nuget.pkg.github.com/alexpetrou94/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
