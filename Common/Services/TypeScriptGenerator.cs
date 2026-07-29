@@ -94,6 +94,29 @@ internal sealed class TypeScriptGenerator
         file.Comment($" Generated from {_className}");
         file.Comment(" Requires TypeScript target ES2015 or higher, or include ES2015 in lib");
         file.BlankLine();
+
+        file.Interface("ProblemDetail<T = Record<string, unknown>>")
+            .Export()
+            .Property("type", "string")
+                .Optional()
+                .EndInterfaceProperty()
+            .Property("title", "string")
+                .Optional()
+                .EndInterfaceProperty()
+            .Property("status", "number")
+                .Optional()
+                .EndInterfaceProperty()
+            .Property("detail", "string")
+                .Optional()
+                .EndInterfaceProperty()
+            .Property("instance", "string")
+                .Optional()
+                .EndInterfaceProperty()
+            .Property("extensions", "T")
+                .Optional()
+                .EndInterfaceProperty()
+            .EndInterface();
+        file.BlankLine();
     }
 
     private static void BuildClientOptionsInterface(FileBuilder file)
@@ -116,7 +139,7 @@ internal sealed class TypeScriptGenerator
     {
         file.Interface("RequestOptions")
             .Export()
-            .Property("params", "Record<string, string | string[]>")
+            .Property("params", "Record<string, string | string[] | number | undefined>")
                 .Optional()
                 .EndInterfaceProperty()
             .Property("body", "unknown")
@@ -274,7 +297,9 @@ internal sealed class TypeScriptGenerator
                     method.Parameter("body", operation.RequestBodyType).EndMethodParameter();
                 }
 
-                method.Returns("Promise<" + operation.ReturnType + ">").EndMethod();
+                method.Parameter("headers", "Record<string, string>").Optional().EndMethodParameter();
+
+                method.Returns("Promise<{ data: " + operation.ReturnType + "; error: null } | { data: null; error: ProblemDetail }>").EndMethod();
             }
 
             verbInterface.EndInterface();
@@ -314,13 +339,13 @@ internal sealed class TypeScriptGenerator
                 b.Line("const headers = options.headers || {};");
                 b.BlankLine();
 
-                b.Line("async function request<T>(path: string, method: string, init?: RequestOptions): Promise<T> {");
+                b.Line("async function request<T>(path: string, method: string, init?: RequestOptions): Promise<{ data: T; error: null } | { data: null; error: ProblemDetail }> {");
                 b.Indent();
                 b.Line("const base = baseUrl.replace(/\\/$/, \"\");");
                 b.Line("const url = new URL(path, base || undefined);");
                 b.Line("if (init?.params) {");
                 b.Indent();
-                b.Line("const entries = Object.entries(init.params);");
+                b.Line("const entries = Object.entries(init.params).filter(([, v]) => v !== undefined);");
                 b.Line("for (const [key, value] of entries) {");
                 b.Indent();
                 b.Line("if (Array.isArray(value)) {");
@@ -329,7 +354,7 @@ internal sealed class TypeScriptGenerator
                 b.Dedent();
                 b.Line("} else {");
                 b.Indent();
-                b.Line("url.searchParams.append(key, value);");
+                b.Line("url.searchParams.append(key, String(value));");
                 b.Dedent();
                 b.Line("}");
                 b.Dedent();
@@ -371,12 +396,37 @@ internal sealed class TypeScriptGenerator
                 b.Line("if (!response.ok) {");
                 b.Indent();
                 b.Line("const errorText = await response.text().catch(() => \"\");");
-                b.Line("throw new Error(`HTTP ${response.status} ${response.statusText}: ${errorText}`);");
+                b.Line("let problemDetail: ProblemDetail = { status: response.status, title: response.statusText };");
+                b.Line("try {");
+                b.Indent();
+                b.Line("const parsed = JSON.parse(errorText);");
+                b.Line("if (parsed && typeof parsed === \"object\") {");
+                b.Indent();
+                b.Line("const { type, title, status, detail, instance, ...rest } = parsed;");
+                b.Line("problemDetail = {");
+                b.Indent();
+                b.Line("type,");
+                b.Line("title: title || response.statusText,");
+                b.Line("status: status || response.status,");
+                b.Line("detail: detail || errorText,");
+                b.Line("instance,");
+                b.Line("extensions: Object.keys(rest).length > 0 ? rest : undefined,");
+                b.Dedent();
+                b.Line("};");
+                b.Dedent();
+                b.Line("}");
+                b.Dedent();
+                b.Line("} catch {");
+                b.Indent();
+                b.Line("problemDetail = { status: response.status, title: response.statusText, detail: errorText || `HTTP ${response.status}` };");
+                b.Dedent();
+                b.Line("}");
+                b.Line("return { data: null, error: problemDetail };");
                 b.Dedent();
                 b.Line("}");
                 b.BlankLine();
                 b.Line("const text = await response.text();");
-                b.Line("return (text ? JSON.parse(text) : undefined) as T;");
+                b.Line("return { data: (text ? JSON.parse(text) : undefined) as T, error: null };");
                 b.Dedent();
                 b.Line("}");
                 b.BlankLine();
@@ -442,6 +492,7 @@ internal sealed class TypeScriptGenerator
             signatureParams.Add($"body: {operation.RequestBodyType}");
         }
 
+        signatureParams.Add("headers?: Record<string, string>");
         signatureParams.Add("signal?: AbortSignal");
 
         string paramsList = string.Join(", ", signatureParams);
@@ -452,7 +503,7 @@ internal sealed class TypeScriptGenerator
             b.Line(BuildJSDoc(operation.Summary));
         }
 
-        b.Line($"async {methodName}({paramsList}): Promise<{operation.ReturnType}> {{");
+        b.Line($"async {methodName}({paramsList}): Promise<{{ data: {operation.ReturnType}; error: null }} | {{ data: null; error: ProblemDetail }}> {{");
         b.Indent();
         b.Line($"return request<{operation.ReturnType}>({BuildUrl(operation.Path, operation.PathParams)}, '{operation.HttpMethod}'{BuildInitArgument(operation.QueryParams, operation.RequestBodyType != null)});");
         b.Dedent();
@@ -890,7 +941,7 @@ internal sealed class TypeScriptGenerator
 
         if (queryParams.Count > 0)
         {
-            IEnumerable<string> names = queryParams.Select(p => $"{p.OriginalName}: {p.Name}");
+            IEnumerable<string> names = queryParams.Select(p => p.OriginalName == p.Name ? p.Name : $"{p.OriginalName}: {p.Name}");
             parts.Add("params: { " + string.Join(", ", names) + " }");
         }
 
@@ -899,6 +950,7 @@ internal sealed class TypeScriptGenerator
             parts.Add("body");
         }
 
+        parts.Add("headers");
         parts.Add("signal");
 
         return ", { " + string.Join(", ", parts) + " }";

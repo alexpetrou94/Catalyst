@@ -25,7 +25,7 @@ public class TypeScriptGeneratorTests
 
         Assert.False(string.IsNullOrWhiteSpace(code));
         Assert.Contains("interface Pet", code);
-        Assert.Contains("pets(): Promise<Pet[]>", code);
+        Assert.Contains("pets(headers?: Record<string, string>): Promise<{ data: Pet[]; error: null } | { data: null; error: ProblemDetail }>", code);
         Assert.Contains("interface Get", code);
     }
 
@@ -112,7 +112,7 @@ public class TypeScriptGeneratorTests
         Assert.DoesNotContain("response.json()", code);
         Assert.Contains("response.text()", code);
         Assert.Contains("JSON.parse(text)", code);
-        Assert.Contains("return (text ? JSON.parse(text) : undefined) as T", code);
+        Assert.Contains("return { data: (text ? JSON.parse(text) : undefined) as T, error: null }", code);
     }
 
     [Fact]
