@@ -9,7 +9,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.OpenApi" Version="3.5.3" />
+        <InternalsVisibleTo Include="Catalyst.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="Catalyst.Tests\**\*.cs" />
+        <None Remove="Catalyst.Tests\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.OpenApi" Version="3.9.0" />
       <PackageReference Include="Spectre.Console" Version="0.55.2" />
       <PackageReference Include="Spectre.Console.Cli" Version="0.55.0" />
       <PackageReference Include="UPhoricLibrary" Version="0.2026.121.6" />

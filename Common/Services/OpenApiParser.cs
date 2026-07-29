@@ -10,7 +10,12 @@ internal static class OpenApiParser
     {
         try
         {
-            var result = OpenApiModelFactory.Parse(content, "json", new OpenApiReaderSettings());
+            ReadResult result = OpenApiModelFactory.Parse(content, "json", new OpenApiReaderSettings());
+
+            if (result.Document is null || result.Diagnostic is null)
+            {
+                return Result<OpenApiParseResult>.Error("Failed to parse OpenAPI document: produced an empty result.");
+            }
 
             return Result<OpenApiParseResult>.Ok(new OpenApiParseResult
             {

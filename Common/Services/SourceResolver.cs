@@ -15,7 +15,7 @@ internal static class SourceResolver
             return SourceType.Unknown;
         }
 
-        if (Uri.TryCreate(source, UriKind.Absolute, out var uriResult))
+        if (Uri.TryCreate(source, UriKind.Absolute, out Uri? uriResult))
         {
             if (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps)
             {
@@ -26,13 +26,13 @@ internal static class SourceResolver
         return SourceType.FilePath;
     }
 
-    public static Result<SourceResolveResult> Resolve(string source, CancellationToken cancellationToken)
+    public static async Task<Result<SourceResolveResult>> Resolve(string source, CancellationToken cancellationToken)
     {
         SourceType type = DetermineSourceType(source);
 
         if (type == SourceType.Url)
         {
-            return ResolveUrl(source, cancellationToken);
+            return await ResolveUrl(source, cancellationToken).ConfigureAwait(false);
         }
 
         if (type == SourceType.FilePath)
@@ -43,14 +43,14 @@ internal static class SourceResolver
         return Result<SourceResolveResult>.Error($"Unrecognized source type: {source}");
     }
 
-    private static Result<SourceResolveResult> ResolveUrl(string url, CancellationToken cancellationToken)
+    private static async Task<Result<SourceResolveResult>> ResolveUrl(string url, CancellationToken cancellationToken)
     {
         try
         {
-            using var client = new HttpClient();
+            using HttpClient client = new HttpClient();
             client.Timeout = HttpTimeout;
             client.DefaultRequestHeaders.Add("User-Agent", "Catalyst-CLI/1.0");
-            string content = client.GetStringAsync(url, cancellationToken).GetAwaiter().GetResult();
+            string content = await client.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
 
             return Result<SourceResolveResult>.Ok(new SourceResolveResult
             {

@@ -1,0 +1,10 @@
+{
+  "gen": {
+    "openapi": {
+      "skipPaths": [
+        "/api/auth/",
+        "/internal/"
+      ]
+    }
+  }
+}

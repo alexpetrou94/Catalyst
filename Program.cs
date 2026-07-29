@@ -1,7 +1,8 @@
 using Catalyst.Commands.Gen;
 using Spectre.Console.Cli;
 
-var app = new CommandApp();
+CommandApp app = new();
+
 app.Configure(config =>
 {
     config.AddBranch("gen", gen =>

@@ -1,0 +1,36 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Pet Store", "version": "1.0.0" },
+  "components": {
+    "schemas": {
+      "Pet": {
+        "description": "A pet",
+        "type": "object",
+        "properties": { "name": { "type": "string" } },
+        "required": ["name"]
+      }
+    }
+  },
+  "paths": {
+    "/pets": {
+      "get": {
+        "summary": "List pets",
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Pet" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "responses": { "200": { "description": "ok" } }
+      }
+    }
+  }
+}

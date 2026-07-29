@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
+using Catalyst.Common.Configuration;
 using Catalyst.Common.Models;
 using Catalyst.Common.Services;
 using Microsoft.OpenApi;
@@ -12,7 +13,7 @@ using UPhoricLibrary.Common;
 namespace Catalyst.Commands.Gen;
 
 [Description("Deserializes and validates an OpenAPI specification for future code generation")]
-internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
+internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 {
     public class Settings : CommandSettings
     {
@@ -31,6 +32,10 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
         [CommandOption("--class-name <NAME>")]
         [Description("Generated client name. Defaults to the API title from the OpenAPI spec")]
         public string? ClassName { get; init; }
+
+        [CommandOption("--skip-paths <PATHS>")]
+        [Description("Path prefixes to skip during generation (e.g. /api/auth/). Repeatable or comma-separated. Overrides catalyst.config.json.")]
+        public string[]? SkipPaths { get; init; }
 
         public override ValidationResult Validate()
         {
@@ -51,9 +56,9 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
         }
     }
 
-    protected override int Execute([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
-        Result<SourceResolveResult> resolveResult = SourceResolver.Resolve(settings.Source, cancellationToken);
+        Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, cancellationToken).ConfigureAwait(false);
         if (!resolveResult.Success)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {resolveResult.ErrorMessage}");
@@ -80,14 +85,53 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
         return ExecuteValidation(resolveResult.Value!.DisplayPath, parseResult.Value!.Document, parseResult.Value!.Diagnostic);
     }
 
+    internal static List<string> ResolveSkipPaths(string[]? cliSkipPaths, CatalystConfig? config = null)
+    {
+        if (cliSkipPaths is { Length: > 0 })
+        {
+            List<string> expanded = [];
+            foreach (string raw in cliSkipPaths)
+            {
+                foreach (string part in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    expanded.Add(part);
+                }
+            }
+
+            return expanded;
+        }
+
+        CatalystConfig? resolved = config ?? ConfigLoader.Load();
+        List<string>? configSkip = resolved?.Gen?.OpenApi?.SkipPaths;
+
+        if (configSkip is { Count: > 0 })
+        {
+            return configSkip;
+        }
+
+        return [];
+    }
+
     private static int ExecuteGeneration(Settings settings, OpenApiDocument document)
     {
         if (settings.Language!.Equals("typescript", StringComparison.OrdinalIgnoreCase))
         {
-            var generator = new TypeScriptGenerator(document, settings.ClassName);
+            List<string> skipPaths = ResolveSkipPaths(settings.SkipPaths);
+            TypeScriptGenerator generator = new TypeScriptGenerator(document, settings.ClassName, skipPaths);
             string code = generator.Generate();
 
             File.WriteAllText(settings.Output!, code);
+
+            if (generator.SkippedPathCount > 0)
+            {
+                AnsiConsole.MarkupLine($"[grey]Skipped {generator.SkippedPathCount} path(s) matching configured skip prefixes.[/]");
+            }
+
+            foreach (string warning in generator.DuplicateWarnings)
+            {
+                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
+            }
+
             AnsiConsole.MarkupLine($"[green]TypeScript generated:[/] {Markup.Escape(settings.Output!)}");
             return 0;
         }
@@ -120,7 +164,7 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
             .Border(BoxBorder.Rounded)
             .BorderStyle(new Style(Color.Grey)));
 
-        var infoTable = new Table()
+        Table infoTable = new Table()
             .Border(TableBorder.Rounded)
             .BorderColor(Color.Grey)
             .AddColumn("Property", c => c.Width(20))
@@ -137,18 +181,18 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
         if (document.Paths?.Count > 0)
         {
             AnsiConsole.WriteLine();
-            var tree = new Tree("[bold]Paths[/]")
+            Tree tree = new Tree("[bold]Paths[/]")
                 .Style(new Style(Color.Blue));
 
             foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths.OrderBy(p => p.Key))
             {
-                var pathNode = tree.AddNode($"[yellow]{Markup.Escape(path.Key)}[/]");
+                TreeNode pathNode = tree.AddNode($"[yellow]{Markup.Escape(path.Key)}[/]");
 
                 if (path.Value.Operations != null)
                 {
                     foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.Method))
                     {
-                        var methodColor = operation.Key.Method.ToUpperInvariant() switch
+                        Color methodColor = operation.Key.Method.ToUpperInvariant() switch
                         {
                             "GET" => Color.Green,
                             "POST" => Color.Blue,
@@ -158,7 +202,7 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
                             _ => Color.Grey,
                         };
 
-                        var summary = !string.IsNullOrWhiteSpace(operation.Value.Summary)
+                        string summary = !string.IsNullOrWhiteSpace(operation.Value.Summary)
                             ? $" - {Markup.Escape(operation.Value.Summary)}"
                             : string.Empty;
 
@@ -184,14 +228,14 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
         }
 
         AnsiConsole.WriteLine();
-        var diagTable = new Table()
+        Table diagTable = new Table()
             .Border(TableBorder.Rounded)
             .BorderColor(Color.Yellow)
             .AddColumn("Severity", c => c.Width(12))
             .AddColumn("Pointer")
             .AddColumn("Message");
 
-        foreach (var error in errors)
+        foreach (OpenApiError error in errors)
         {
             diagTable.AddRow(
                 "[red]Error[/]",
@@ -199,7 +243,7 @@ internal sealed class OpenApiCommand : Command<OpenApiCommand.Settings>
                 Markup.Escape(error.Message));
         }
 
-        foreach (var warning in warnings)
+        foreach (OpenApiError warning in warnings)
         {
             diagTable.AddRow(
                 "[yellow]Warning[/]",

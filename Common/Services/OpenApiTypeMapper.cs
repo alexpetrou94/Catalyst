@@ -9,7 +9,7 @@ internal static class OpenApiTypeMapper
     {
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            return schemaRef.Reference.Id;
+            return schemaRef.Reference.Id ?? "any";
         }
 
         if (schema.Enum?.Count > 0)
@@ -32,7 +32,7 @@ internal static class OpenApiTypeMapper
             return isNullable ? "any[] | null" : "any[]";
         }
 
-        if (effectiveType.HasFlag(JsonSchemaType.Object) || schema.Properties?.Count > 0)
+        if (effectiveType.HasFlag(JsonSchemaType.Object) || schema.Properties?.Count > 0 || schema.AdditionalProperties != null)
         {
             string objType = MapObjectSchema(schema);
             return isNullable ? objType + " | null" : objType;
@@ -64,21 +64,26 @@ internal static class OpenApiTypeMapper
 
     private static string MapEnum(IOpenApiSchema schema)
     {
-        var values = new List<string>();
+        List<string> values = [];
 
-        foreach (JsonNode? item in schema.Enum)
+        if (schema.Enum is null)
+        {
+            return "any";
+        }
+
+        foreach (JsonNode item in schema.Enum)
         {
             if (item is JsonValue jsonValue)
             {
-                if (jsonValue.TryGetValue<string>(out var str))
+                if (jsonValue.TryGetValue(out string? str))
                 {
                     values.Add($"\"{str}\"");
                 }
-                else if (jsonValue.TryGetValue<int>(out var intValue))
+                else if (jsonValue.TryGetValue(out int intValue))
                 {
                     values.Add(intValue.ToString());
                 }
-                else if (jsonValue.TryGetValue<bool>(out var boolValue))
+                else if (jsonValue.TryGetValue(out bool boolValue))
                 {
                     values.Add(boolValue ? "true" : "false");
                 }
@@ -112,9 +117,9 @@ internal static class OpenApiTypeMapper
             return "Record<string, any>";
         }
 
-        var properties = new List<string>();
+        List<string> properties = [];
 
-        foreach (var property in schema.Properties)
+        foreach (KeyValuePair<string, IOpenApiSchema> property in schema.Properties)
         {
             bool isRequired = schema.Required?.Contains(property.Key) ?? false;
             string optional = isRequired ? "" : "?";
