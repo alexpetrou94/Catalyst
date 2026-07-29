@@ -1,6 +1,3 @@
-using Catalyst.Common.Services;
-using Microsoft.OpenApi.Reader;
-
 namespace Catalyst.Tests.Services;
 
 public class TypeScriptGeneratorMinimalTests

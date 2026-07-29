@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using Microsoft.OpenApi;
 
 namespace Catalyst.Tests.Services;
 

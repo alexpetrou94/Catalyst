@@ -1,8 +1,8 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "TRS Enterprise API",
-        "description": "API for TRS Enterprise",
+        "title": "Enterprise API",
+        "description": "API for Enterprise",
         "version": "1.0.0"
     },
     "components": {

@@ -1,6 +1,3 @@
-using Microsoft.OpenApi.Reader;
-using UPhoricLibrary.Common;
-
 namespace Catalyst.Tests.Services;
 
 public class TypeScriptGeneratorTests
@@ -66,7 +63,7 @@ public class TypeScriptGeneratorTests
         string json = File.ReadAllText("Fixtures/openapi-example.json");
 
         OpenApiDocument document = ParseDocument(json);
-        TypeScriptGenerator generator = new TypeScriptGenerator(document, "TRS Enterprise API");
+        TypeScriptGenerator generator = new TypeScriptGenerator(document, "Enterprise API");
 
         string code = generator.Generate();
         string expected = File.ReadAllText("Fixtures/generated-api-example.ts");

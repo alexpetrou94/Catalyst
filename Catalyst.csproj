@@ -6,6 +6,14 @@
         <LangVersion>latestmajor</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>catalyst</ToolCommandName>
+        <PackageId>catalyst-cli</PackageId>
+        <Version>0.1.0</Version>
+        <Description>Modular CLI toolkit for automating code generation and development tasks</Description>
+        <Authors>alexpetrou94</Authors>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RepositoryUrl>https://github.com/alexpetrou94/catalyst</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
@@ -15,6 +23,10 @@
     <ItemGroup>
         <Compile Remove="Catalyst.Tests\**\*.cs" />
         <None Remove="Catalyst.Tests\**" />
+        <None Include=".examples\generated-api-example.ts" />
+        <None Include=".examples\openapi-example.json" />
+        <None Include=".examples\openapi-invalid.json" />
+        <None Include=".examples\out.ts" />
     </ItemGroup>
 
     <ItemGroup>

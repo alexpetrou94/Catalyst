@@ -1,4 +1,4 @@
-//  Generated from TRS Enterprise API
+//  Generated from Enterprise API
 //  Requires TypeScript target ES2015 or higher, or include ES2015 in lib
 
 export interface ClientOptions
@@ -130,7 +130,7 @@ export interface DeleteDeviceIdResponse
     success: boolean;
 }
 
-export interface TrsEnterpriseApiClient
+export interface EnterpriseApiClient
 {
     get: Get;
     post: Post;
@@ -167,7 +167,7 @@ export interface Delete
     deviceId(id: string): Promise<DeleteDeviceIdResponse>;
 }
 
-export function createClient(options: ClientOptions = {}): TrsEnterpriseApiClient
+export function createClient(options: ClientOptions = {}): EnterpriseApiClient
 {
     const baseUrl = options.baseUrl || 'http://localhost:3001';
     const credentials = options.credentials;
