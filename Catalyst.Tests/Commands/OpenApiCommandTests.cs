@@ -55,4 +55,60 @@ public class OpenApiCommandTests
 
         Assert.Equal(["/a/", "/b/"], result);
     }
+
+    [Fact]
+    public void ResolveOutputPath_UsesClassName_WhenOutputEndsWithSeparator()
+    {
+        string result = OpenApiCommand.ResolveOutputPath("src\\external-apis\\", "CommunicationApi");
+
+        Assert.Equal(Path.Combine("src\\external-apis", "CommunicationApi.ts"), result);
+    }
+
+    [Fact]
+    public void ResolveOutputPath_DefaultsToApi_WhenOutputIsDirectoryAndNoClassName()
+    {
+        string result = OpenApiCommand.ResolveOutputPath("src\\external-apis\\", null);
+
+        Assert.Equal(Path.Combine("src\\external-apis", "api.ts"), result);
+    }
+
+    [Fact]
+    public void ResolveOutputPath_TreatsExistingDirectoryAsDirectory()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string result = OpenApiCommand.ResolveOutputPath(dir, "CommunicationApi");
+
+            Assert.Equal(Path.Combine(dir, "CommunicationApi.ts"), result);
+        }
+        finally
+        {
+            Directory.Delete(dir);
+        }
+    }
+
+    [Fact]
+    public void ResolveOutputPath_PassesThroughPlainFilePath()
+    {
+        string result = OpenApiCommand.ResolveOutputPath("src\\external-apis\\api.ts", "CommunicationApi");
+
+        Assert.Equal("src\\external-apis\\api.ts", result);
+    }
+
+    [Fact]
+    public void ResolveOutputPath_SanitizesInvalidFileNameCharacters()
+    {
+        string result = OpenApiCommand.ResolveOutputPath("out\\", "My:Api*?");
+
+        Assert.Equal(Path.Combine("out", "My_Api__.ts"), result);
+    }
+
+    [Fact]
+    public void ResolveOutputPath_ReturnsEmpty_WhenOutputIsBlank()
+    {
+        Assert.Equal(string.Empty, OpenApiCommand.ResolveOutputPath("", null));
+        Assert.Equal(string.Empty, OpenApiCommand.ResolveOutputPath("   ", null));
+    }
 }

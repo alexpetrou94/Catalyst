@@ -26,7 +26,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         public string? Language { get; init; }
 
         [CommandOption("--output <PATH>")]
-        [Description("Output file path. Required when --language is specified")]
+        [Description("Output file or directory path. Required when --language is specified. When a directory is given, the file is named after --class-name")]
         public string? Output { get; init; }
 
         [CommandOption("--class-name <NAME>")]
@@ -112,6 +112,36 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         return [];
     }
 
+    internal static string ResolveOutputPath(string? output, string? className)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            return string.Empty;
+        }
+
+        bool looksLikeDirectory = output.EndsWith(Path.DirectorySeparatorChar)
+            || output.EndsWith(Path.AltDirectorySeparatorChar)
+            || Directory.Exists(output);
+
+        if (!looksLikeDirectory)
+        {
+            return output;
+        }
+
+        string fileName = string.IsNullOrWhiteSpace(className)
+            ? "api.ts"
+            : $"{SanitizeFileName(className)}.ts";
+
+        return Path.Combine(output, fileName);
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        char[] invalid = Path.GetInvalidFileNameChars();
+        string sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+        return string.IsNullOrWhiteSpace(sanitized) ? "api" : sanitized;
+    }
+
     private static int ExecuteGeneration(Settings settings, OpenApiDocument document)
     {
         if (settings.Language!.Equals("typescript", StringComparison.OrdinalIgnoreCase))
@@ -120,7 +150,14 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
             TypeScriptGenerator generator = new TypeScriptGenerator(document, settings.ClassName, skipPaths);
             string code = generator.Generate();
 
-            File.WriteAllText(settings.Output!, code);
+            string outputPath = ResolveOutputPath(settings.Output, settings.ClassName);
+            string? directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.WriteAllText(outputPath, code);
 
             if (generator.SkippedPathCount > 0)
             {
@@ -132,7 +169,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
                 AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
             }
 
-            AnsiConsole.MarkupLine($"[green]TypeScript generated:[/] {Markup.Escape(settings.Output!)}");
+            AnsiConsole.MarkupLine($"[green]TypeScript generated:[/] {Markup.Escape(outputPath)}");
             return 0;
         }
 
