@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi;
 using UPhoricLibrary.CodeGeneration.Common;
@@ -177,6 +178,12 @@ internal sealed class TypeScriptGenerator
 
         _generatedTypeNames.Add(name);
 
+        if (schema.Enum?.Count > 0)
+        {
+            BuildEnumFromSchema(file, name, schema);
+            return;
+        }
+
         InterfaceBuilder interfaceBuilder = file.Interface(name).Export();
 
         if (!string.IsNullOrWhiteSpace(schema.Description))
@@ -194,6 +201,44 @@ internal sealed class TypeScriptGenerator
         }
 
         interfaceBuilder.EndInterface();
+    }
+
+    private void BuildEnumFromSchema(FileBuilder file, string name, IOpenApiSchema schema)
+    {
+        if (schema.Enum is not { Count: > 0 })
+        {
+            return;
+        }
+
+        EnumBuilder enumBuilder = file.Enum(SanitizeIdentifier(name)).Export();
+
+        HashSet<string> usedMembers = [];
+
+        foreach (JsonNode? member in schema.Enum)
+        {
+            if (member is not JsonValue jsonValue)
+            {
+                continue;
+            }
+
+            if (!jsonValue.TryGetValue(out string? value) || value is null)
+            {
+                continue;
+            }
+
+            string memberName = SanitizeIdentifier(value, asParameter: true);
+            string uniqueName = memberName;
+            int suffix = 1;
+            while (!usedMembers.Add(uniqueName))
+            {
+                uniqueName = $"{memberName}_{suffix++}";
+            }
+
+            string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            enumBuilder.Member(uniqueName, $"\"{escaped}\"");
+        }
+
+        enumBuilder.EndEnum();
     }
 
     private void BuildInterfaceProperty(FileBuilder file, InterfaceBuilder interfaceBuilder, string parentName, string name, IOpenApiSchema schema, bool isRequired)
@@ -252,7 +297,45 @@ internal sealed class TypeScriptGenerator
             return isNullable ? pascalName + " | null" : pascalName;
         }
 
+        if (schema.OneOf?.Count > 0)
+        {
+            return ResolveOneOf(file, suggestedName, schema);
+        }
+
         return OpenApiTypeMapper.MapSchema(schema);
+    }
+
+    private string ResolveOneOf(FileBuilder file, string suggestedName, IOpenApiSchema schema)
+    {
+        if (schema.OneOf is not { Count: > 0 })
+        {
+            return "any";
+        }
+
+        List<string> branches = [];
+
+        foreach (IOpenApiSchema branch in schema.OneOf)
+        {
+            bool isNullOnly = IsNullOnlySchema(branch);
+
+            if (isNullOnly)
+            {
+                branches.Add("null");
+            }
+            else
+            {
+                branches.Add(ResolveType(file, suggestedName + "Union", branch));
+            }
+        }
+
+        return string.Join(" | ", branches.Distinct().OrderBy(b => b == "null"));
+    }
+
+    private static bool IsNullOnlySchema(IOpenApiSchema schema)
+    {
+        JsonSchemaType? type = schema.Type;
+        return type?.HasFlag(JsonSchemaType.Null) == true
+            && (type.Value & ~JsonSchemaType.Null) == 0;
     }
 
     private void BuildApiClientInterface(FileBuilder file, List<OperationInfo> operations)

@@ -17,6 +17,11 @@ internal static class OpenApiTypeMapper
             return MapEnum(schema);
         }
 
+        if (schema.OneOf?.Count > 0)
+        {
+            return MapOneOf(schema);
+        }
+
         JsonSchemaType? type = schema.Type;
         JsonSchemaType effectiveType = (type ?? 0) & ~JsonSchemaType.Null;
         bool isNullable = type?.HasFlag(JsonSchemaType.Null) == true;
@@ -71,8 +76,14 @@ internal static class OpenApiTypeMapper
             return "any";
         }
 
-        foreach (JsonNode item in schema.Enum)
+        foreach (JsonNode? item in schema.Enum)
         {
+            if (item is null)
+            {
+                values.Add("null");
+                continue;
+            }
+
             if (item is JsonValue jsonValue)
             {
                 if (jsonValue.TryGetValue(out string? str))
@@ -98,10 +109,35 @@ internal static class OpenApiTypeMapper
             }
         }
 
-        string union = string.Join(" | ", values);
+        string union = string.Join(" | ", values.Distinct());
 
         bool isNullable = schema.Type?.HasFlag(JsonSchemaType.Null) == true;
         return isNullable ? union + " | null" : union;
+    }
+
+    private static string MapOneOf(IOpenApiSchema schema)
+    {
+        if (schema.OneOf is not { Count: > 0 })
+        {
+            return "any";
+        }
+
+        List<string> branches = [];
+
+        foreach (IOpenApiSchema branch in schema.OneOf)
+        {
+            bool isNullOnly = IsNullOnlySchema(branch);
+            branches.Add(isNullOnly ? "null" : MapSchema(branch));
+        }
+
+        return string.Join(" | ", branches.Distinct().OrderBy(b => b == "null"));
+    }
+
+    private static bool IsNullOnlySchema(IOpenApiSchema schema)
+    {
+        JsonSchemaType? type = schema.Type;
+        return type?.HasFlag(JsonSchemaType.Null) == true
+            && (type.Value & ~JsonSchemaType.Null) == 0;
     }
 
     private static string MapObjectSchema(IOpenApiSchema schema)

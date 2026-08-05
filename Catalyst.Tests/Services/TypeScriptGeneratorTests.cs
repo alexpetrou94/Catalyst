@@ -255,6 +255,66 @@ public class TypeScriptGeneratorTests
         Assert.Contains("new URL(path, base || undefined)", code);
     }
 
+    [Fact]
+    public void Generate_EmitsEnums_AndNullableEnumReferences()
+    {
+        string json = """
+        {
+            "openapi": "3.1.1",
+            "info": { "title": "EnumTest", "version": "1.0" },
+            "paths": {
+                "/organisations": {
+                    "post": {
+                        "requestBody": {
+                            "required": true,
+                            "content": {
+                                "application/json": {
+                                    "schema": { "$ref": "#/components/schemas/AddOrganisationRequest" }
+                                }
+                            }
+                        },
+                        "responses": { "200": { "description": "OK" } }
+                    }
+                }
+            },
+            "components": {
+                "schemas": {
+                    "AddOrganisationRequest": {
+                        "type": "object",
+                        "required": [ "displayName" ],
+                        "properties": {
+                            "displayName": { "type": "string" },
+                            "communicationProvider": { "$ref": "#/components/schemas/CommunicationProviderType" },
+                            "status": {
+                                "oneOf": [
+                                    { "type": "null" },
+                                    { "$ref": "#/components/schemas/ProviderOrganisationStatus" }
+                                ]
+                            }
+                        }
+                    },
+                    "CommunicationProviderType": { "enum": [ "Twilio" ] },
+                    "ProviderOrganisationStatus": { "enum": [ "PendingCreation", "Active", null ] }
+                }
+            }
+        }
+        """;
+
+        OpenApiDocument document = ParseDocument(json);
+        TypeScriptGenerator generator = new TypeScriptGenerator(document, "EnumTest");
+        string code = generator.Generate();
+
+        Assert.Contains("export enum CommunicationProviderType", code);
+        Assert.Contains("Twilio = \"Twilio\"", code);
+        Assert.Contains("export enum ProviderOrganisationStatus", code);
+        Assert.Contains("PendingCreation = \"PendingCreation\"", code);
+        Assert.Contains("Active = \"Active\"", code);
+        Assert.Contains("communicationProvider?: CommunicationProviderType", code);
+        Assert.Contains("status?: ProviderOrganisationStatus | null", code);
+        Assert.DoesNotContain("interface CommunicationProviderType", code);
+        Assert.DoesNotContain("interface ProviderOrganisationStatus", code);
+    }
+
     private static string Normalize(string value) =>
         value.Replace("\r\n", "\n").Trim();
 }

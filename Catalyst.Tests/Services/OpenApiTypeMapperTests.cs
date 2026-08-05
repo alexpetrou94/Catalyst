@@ -74,4 +74,48 @@ public class OpenApiTypeMapperTests
         OpenApiSchemaReference schema = new OpenApiSchemaReference("Pet", new OpenApiDocument());
         Assert.Equal("Pet", Catalyst.Common.Services.OpenApiTypeMapper.MapSchema(schema));
     }
+
+    [Fact]
+    public void MapSchema_EmitsNull_ForNullEnumMember()
+    {
+        OpenApiSchema schema = new OpenApiSchema
+        {
+            Enum = new List<JsonNode>
+            {
+                JsonNode.Parse("\"a\"")!,
+                null!,
+            },
+        };
+        Assert.Equal("\"a\" | null", Catalyst.Common.Services.OpenApiTypeMapper.MapSchema(schema));
+    }
+
+    [Fact]
+    public void MapSchema_ReturnsRefWithNull_ForOneOfNullAndRef()
+    {
+        OpenApiSchema schema = new OpenApiSchema
+        {
+            OneOf = new List<IOpenApiSchema>
+            {
+                new OpenApiSchema { Type = JsonSchemaType.Null },
+                new OpenApiSchemaReference("ProviderOrganisationStatus", new OpenApiDocument()),
+            },
+        };
+        Assert.Equal("ProviderOrganisationStatus | null", Catalyst.Common.Services.OpenApiTypeMapper.MapSchema(schema));
+    }
+
+    [Fact]
+    public void MapSchema_JoinsOneOfBranches_AndDeduplicates()
+    {
+        OpenApiSchema schema = new OpenApiSchema
+        {
+            OneOf = new List<IOpenApiSchema>
+            {
+                new OpenApiSchema { Type = JsonSchemaType.String },
+                new OpenApiSchema { Type = JsonSchemaType.Number },
+                new OpenApiSchema { Type = JsonSchemaType.Null },
+                new OpenApiSchema { Type = JsonSchemaType.Null },
+            },
+        };
+        Assert.Equal("string | number | null", Catalyst.Common.Services.OpenApiTypeMapper.MapSchema(schema));
+    }
 }
