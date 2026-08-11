@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi;
+using UPhoricLibrary.CodeGeneration.Common;
 using UPhoricLibrary.CodeGeneration.Common.Builders;
 using UPhoricLibrary.CodeGeneration.Common.Builders.Scopes;
 using UPhoricLibrary.CodeGeneration.Common.Model;
@@ -31,7 +32,7 @@ internal sealed class TypeScriptGenerator
     {
         List<OperationInfo> operations = ExtractOperations();
 
-        CodeBuilder ts = new(Language.TypeScript);
+        CodeBuilder ts = new(Language.TypeScript, new CodeBuilderOptions { BraceStyle = BraceStyle.KAndR });
         FileScope file = ts.File("api.ts");
 
         BuildHeader(file);
@@ -351,152 +352,147 @@ internal sealed class TypeScriptGenerator
             {
                 if (hasDefaultUrl)
                 {
-                    b.Line($"const baseUrl = options.baseUrl || '{defaultBaseUrl}';");
+                    b.Const("baseUrl", (CodeType?)null, $"options.baseUrl || '{defaultBaseUrl}'");
                 }
                 else
                 {
-                    b.Line("if (!options.baseUrl) {");
-                    b.Line("    throw new Error('baseUrl is required in ClientOptions');");
-                    b.Line("}");
-                    b.Line("const baseUrl = options.baseUrl;");
+                    b.If("!options.baseUrl", i => i.Throw("new Error('baseUrl is required in ClientOptions')"));
+                    b.Const("baseUrl", (CodeType?)null, "options.baseUrl");
                 }
-                b.Line("const credentials = options.credentials;");
-                b.Line("const headers = options.headers || {};");
+                b.Const("credentials", (CodeType?)null, "options.credentials");
+                b.Const("headers", (CodeType?)null, "options.headers || {}");
                 b.BlankLine();
 
-                b.Line("async function request<T>(path: string, method: string, init?: RequestOptions): Promise<{ data: T; error: null } | { data: null; error: ProblemDetail }> {");
-                b.Line("    const base = baseUrl.replace(/\\/$/, \"\");");
-                b.Line("    const url = new URL(path, base || undefined);");
-                b.Line("    if (init?.params) {");
-                b.Line("        const entries = Object.entries(init.params).filter(([, v]) => v !== undefined);");
-                b.Line("        for (const [key, value] of entries) {");
-                b.Line("            if (Array.isArray(value)) {");
-                b.Line("                for (const v of value) { url.searchParams.append(key, v); }");
-                b.Line("            } else {");
-                b.Line("                url.searchParams.append(key, String(value));");
-                b.Line("            }");
-                b.Line("        }");
-                b.Line("    }");
-                b.BlankLine();
-                b.Line("    const requestHeaders: Record<string, string> = { ...headers, ...(init?.headers ?? {}) };");
-                b.Line("    let body: BodyInit | undefined;");
-                b.Line("    if (init?.body !== undefined) {");
-                b.Line("        if (typeof init.body === \"object\" && init.body !== null && !(init.body instanceof FormData) && !(init.body instanceof Blob) && !(init.body instanceof ArrayBuffer)) {");
-                b.Line("            if (!(\"Content-Type\" in requestHeaders)) {");
-                b.Line("                requestHeaders[\"Content-Type\"] = \"application/json\";");
-                b.Line("            }");
-                b.Line("            body = JSON.stringify(init.body);");
-                b.Line("        } else {");
-                b.Line("            body = init.body as BodyInit;");
-                b.Line("        }");
-                b.Line("    }");
-                b.BlankLine();
-                b.Line("    const response = await fetch(url.href, {");
-                b.Line("        method,");
-                b.Line("        credentials,");
-                b.Line("        headers: requestHeaders,");
-                b.Line("        body,");
-                b.Line("        signal: init?.signal,");
-                b.Line("    });");
-                b.BlankLine();
-                b.Line("    if (!response.ok) {");
-                b.Line("        const errorText = await response.text().catch(() => \"\");");
-                b.Line("        let problemDetail: ProblemDetail = { status: response.status, title: response.statusText };");
-                b.Line("        try {");
-                b.Line("            const parsed = JSON.parse(errorText);");
-                b.Line("            if (parsed && typeof parsed === \"object\") {");
-                b.Line("                const { type, title, status, detail, instance, ...rest } = parsed;");
-                b.Line("                problemDetail = {");
-                b.Line("                    type,");
-                b.Line("                    title: title || response.statusText,");
-                b.Line("                    status: status || response.status,");
-                b.Line("                    detail: detail || errorText,");
-                b.Line("                    instance,");
-                b.Line("                    extensions: Object.keys(rest).length > 0 ? rest : undefined,");
-                b.Line("                };");
-                b.Line("            }");
-                b.Line("        } catch {");
-                b.Line("            problemDetail = { status: response.status, title: response.statusText, detail: errorText || `HTTP ${response.status}` };");
-                b.Line("        }");
-                b.Line("        return { data: null, error: problemDetail };");
-                b.Line("    }");
-                b.BlankLine();
-                b.Line("    const text = await response.text();");
-                b.Line("    return { data: (text ? JSON.parse(text) : undefined) as T, error: null };");
-                b.Line("}");
-                b.BlankLine();
-
-                b.Line("return {");
-
-                IEnumerable<IGrouping<string, OperationInfo>> methodGroups = operations.GroupBy(o => o.HttpMethod);
-                int groupIndex = 0;
-                int totalGroups = methodGroups.Count();
-
-                foreach (IGrouping<string, OperationInfo> group in methodGroups)
+                b.Block("async function request<T>(path: string, method: string, init?: RequestOptions): Promise<{ data: T; error: null } | { data: null; error: ProblemDetail }>", req =>
                 {
-                    b.Line($"    {group.Key}: {{");
-
-                    OperationInfo[] groupOps = group.ToArray();
-                    for (int i = 0; i < groupOps.Length; i++)
+                    req.Const("base", (CodeType?)null, "baseUrl.replace(/\\/$/, \"\")");
+                    req.Const("url", (CodeType?)null, "new URL(path, base || undefined)");
+                    req.If("init?.params", p =>
                     {
-                        OperationInfo operation = groupOps[i];
-                        WriteFactoryMethodBody(b, operation);
-
-                        if (i < groupOps.Length - 1)
+                        p.Const("entries", (CodeType?)null, "Object.entries(init.params).filter(([, v]) => v !== undefined)");
+                        p.ForEach("[key, value]", "entries", e =>
                         {
-                            b.BlankLine();
-                        }
-                    }
-
-                    b.Line("    },");
-
-                    if (groupIndex < totalGroups - 1)
+                            e.If("Array.isArray(value)", arr =>
+                                arr.ForEach("v", "value", v => v.Line("url.searchParams.append(key, v);")))
+                             .Else(other => other.Line("url.searchParams.append(key, String(value));"));
+                        });
+                    });
+                    req.BlankLine();
+                    req.Const("requestHeaders", "Record<string, string>", "{ ...headers, ...(init?.headers ?? {}) }");
+                    req.Var("body", "BodyInit | undefined");
+                    req.If("init?.body !== undefined", body =>
                     {
-                        b.BlankLine();
+                        body.If("typeof init.body === \"object\" && init.body !== null && !(init.body instanceof FormData) && !(init.body instanceof Blob) && !(init.body instanceof ArrayBuffer)", obj =>
+                        {
+                            obj.If("!(\"Content-Type\" in requestHeaders)", ct =>
+                                ct.Line("requestHeaders[\"Content-Type\"] = \"application/json\";"));
+                            obj.Line("body = JSON.stringify(init.body);");
+                        }).Else(raw => raw.Line("body = init.body as BodyInit;"));
+                    });
+                    req.BlankLine();
+                    req.Line("const response = await fetch(url.href, {");
+                    req.Line("    method,");
+                    req.Line("    credentials,");
+                    req.Line("    headers: requestHeaders,");
+                    req.Line("    body,");
+                    req.Line("    signal: init?.signal,");
+                    req.Line("});");
+                    req.BlankLine();
+                    req.If("!response.ok", err =>
+                    {
+                        err.Const("errorText", (CodeType?)null, "await response.text().catch(() => \"\")");
+                        err.Var("problemDetail", "ProblemDetail", "{ status: response.status, title: response.statusText }");
+                        err.Try(t =>
+                        {
+                            t.Const("parsed", (CodeType?)null, "JSON.parse(errorText)");
+                            t.If("parsed && typeof parsed === \"object\"", parsed =>
+                            {
+                                parsed.Line("const { type, title, status, detail, instance, ...rest } = parsed;");
+                                parsed.Line("problemDetail = {");
+                                parsed.Line("    type,");
+                                parsed.Line("    title: title || response.statusText,");
+                                parsed.Line("    status: status || response.status,");
+                                parsed.Line("    detail: detail || errorText,");
+                                parsed.Line("    instance,");
+                                parsed.Line("    extensions: Object.keys(rest).length > 0 ? rest : undefined,");
+                                parsed.Line("};");
+                            });
+                        }).Catch(null, c =>
+                        {
+                            c.Line("problemDetail = { status: response.status, title: response.statusText, detail: errorText || `HTTP ${response.status}` };");
+                        });
+                        err.Return("{ data: null, error: problemDetail }");
+                    });
+                    req.BlankLine();
+                    req.Const("text", (CodeType?)null, "await response.text()");
+                    req.Return("{ data: (text ? JSON.parse(text) : undefined) as T, error: null }");
+                });
+                b.BlankLine();
+
+                b.Block("return", ret =>
+                {
+                    IEnumerable<IGrouping<string, OperationInfo>> methodGroups = operations.GroupBy(o => o.HttpMethod);
+                    int groupIndex = 0;
+                    int totalGroups = methodGroups.Count();
+
+                    foreach (IGrouping<string, OperationInfo> group in methodGroups)
+                    {
+                        ret.Block($"{group.Key}:", g =>
+                        {
+                            OperationInfo[] groupOps = group.ToArray();
+                            for (int i = 0; i < groupOps.Length; i++)
+                            {
+                                OperationInfo operation = groupOps[i];
+
+                                List<string> signatureParams = [];
+                                foreach (ParameterInfo param in operation.PathParams)
+                                {
+                                    signatureParams.Add($"{param.Name}: {param.Type}");
+                                }
+
+                                foreach (ParameterInfo param in operation.QueryParams)
+                                {
+                                    string optional = param.Required ? string.Empty : "?";
+                                    signatureParams.Add($"{param.Name}{optional}: {param.Type}");
+                                }
+
+                                if (operation.RequestBodyType != null)
+                                {
+                                    signatureParams.Add($"body: {operation.RequestBodyType}");
+                                }
+
+                                signatureParams.Add("headers?: Record<string, string>");
+                                signatureParams.Add("signal?: AbortSignal");
+
+                                string paramsList = string.Join(", ", signatureParams);
+                                string methodName = StripHttpVerbPrefix(operation.Name, operation.HttpMethod);
+
+                                if (!string.IsNullOrWhiteSpace(operation.Summary))
+                                {
+                                    g.Line(BuildJSDoc(operation.Summary));
+                                }
+
+                                g.Block($"async {methodName}({paramsList}): Promise<{{ data: {operation.ReturnType}; error: null }} | {{ data: null; error: ProblemDetail }}>", m =>
+                                    m.Return($"request<{operation.ReturnType}>({BuildUrl(operation.Path, operation.PathParams)}, '{operation.HttpMethod}'{BuildInitArgument(operation.QueryParams, operation.RequestBodyType != null)})"),
+                                    close: ",");
+
+                                if (i < groupOps.Length - 1)
+                                {
+                                    g.BlankLine();
+                                }
+                            }
+                        }, close: ",");
+
+                        if (groupIndex < totalGroups - 1)
+                        {
+                            ret.BlankLine();
+                        }
+
+                        groupIndex++;
                     }
-
-                    groupIndex++;
-                }
-
-                b.Line("};");
+                }, close: ";");
             })
             .EndFunction();
-    }
-
-    private static void WriteFactoryMethodBody(BodyBuilder b, OperationInfo operation)
-    {
-        List<string> signatureParams = [];
-
-        foreach (ParameterInfo param in operation.PathParams)
-        {
-            signatureParams.Add($"{param.Name}: {param.Type}");
-        }
-
-        foreach (ParameterInfo param in operation.QueryParams)
-        {
-            string optional = param.Required ? string.Empty : "?";
-            signatureParams.Add($"{param.Name}{optional}: {param.Type}");
-        }
-
-        if (operation.RequestBodyType != null)
-        {
-            signatureParams.Add($"body: {operation.RequestBodyType}");
-        }
-
-        signatureParams.Add("headers?: Record<string, string>");
-        signatureParams.Add("signal?: AbortSignal");
-
-        string paramsList = string.Join(", ", signatureParams);
-        string methodName = StripHttpVerbPrefix(operation.Name, operation.HttpMethod);
-
-        if (!string.IsNullOrWhiteSpace(operation.Summary))
-        {
-            b.Line("        " + BuildJSDoc(operation.Summary));
-        }
-
-        b.Line($"        async {methodName}({paramsList}): Promise<{{ data: {operation.ReturnType}; error: null }} | {{ data: null; error: ProblemDetail }}> {{");
-        b.Line($"            return request<{operation.ReturnType}>({BuildUrl(operation.Path, operation.PathParams)}, '{operation.HttpMethod}'{BuildInitArgument(operation.QueryParams, operation.RequestBodyType != null)});");
-        b.Line("        },");
     }
 
     private List<OperationInfo> ExtractOperations()
@@ -967,3 +963,4 @@ internal sealed class TypeScriptGenerator
         public required bool Required { get; init; }
     }
 }
+

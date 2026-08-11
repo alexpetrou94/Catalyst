@@ -180,7 +180,9 @@ export function createClient(options: ClientOptions = {}): EnterpriseApiClient {
             const entries = Object.entries(init.params).filter(([, v]) => v !== undefined);
             for (const [key, value] of entries) {
                 if (Array.isArray(value)) {
-                    for (const v of value) { url.searchParams.append(key, v); }
+                    for (const v of value) {
+                        url.searchParams.append(key, v);
+                    }
                 } else {
                     url.searchParams.append(key, String(value));
                 }
