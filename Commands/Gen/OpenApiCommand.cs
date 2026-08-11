@@ -59,14 +59,14 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
     protected override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
         Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, cancellationToken).ConfigureAwait(false);
-        if (!resolveResult.Success)
+        if (!resolveResult.IsSuccess)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {resolveResult.ErrorMessage}");
             return 1;
         }
 
         Result<OpenApiParseResult> parseResult = OpenApiParser.Parse(resolveResult.Value!.Content);
-        if (!parseResult.Success)
+        if (!parseResult.IsSuccess)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {parseResult.ErrorMessage}");
             return 1;

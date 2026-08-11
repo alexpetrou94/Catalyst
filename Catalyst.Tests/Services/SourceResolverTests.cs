@@ -1,4 +1,4 @@
-namespace Catalyst.Tests.Services;
+﻿namespace Catalyst.Tests.Services;
 
 public class SourceResolverTests
 {
@@ -17,7 +17,7 @@ public class SourceResolverTests
     {
         Result<SourceResolveResult> result = await SourceResolver.Resolve("./does-not-exist-12345.json", CancellationToken.None);
 
-        Assert.False(result.Success);
+        Assert.False(result.IsSuccess);
         Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
     }
 
@@ -31,7 +31,7 @@ public class SourceResolverTests
         {
             Result<SourceResolveResult> result = await SourceResolver.Resolve(path, CancellationToken.None);
 
-            Assert.True(result.Success);
+            Assert.True(result.IsSuccess);
             Assert.Equal(SourceType.FilePath, result.Value!.Type);
             Assert.Contains("hello", result.Value!.Content);
         }

@@ -1,9 +1,7 @@
 //  Generated from Enterprise API
 //  Requires TypeScript target ES2015 or higher, or include ES2015 in lib
 
-
-export interface ProblemDetail<T = Record<string, unknown>>
-{
+export interface ProblemDetail<T = Record<string, unknown>> {
     type?: string;
     title?: string;
     status?: number;
@@ -12,23 +10,20 @@ export interface ProblemDetail<T = Record<string, unknown>>
     extensions?: T;
 }
 
-export interface ClientOptions
-{
+export interface ClientOptions {
     baseUrl?: string;
     credentials?: RequestCredentials;
     headers?: Record<string, string>;
 }
 
-export interface RequestOptions
-{
+export interface RequestOptions {
     params?: Record<string, string | string[] | number | undefined>;
     body?: unknown;
     headers?: Record<string, string>;
     signal?: AbortSignal;
 }
 
-export interface GetMediaResponseItem
-{
+export interface GetMediaResponseItem {
     uid: string;
     name: string;
     mimetype: string;
@@ -37,26 +32,22 @@ export interface GetMediaResponseItem
     createdAt: string;
 }
 
-export interface GetMediaSignedUrlResponse
-{
+export interface GetMediaSignedUrlResponse {
     signedUrl: string;
 }
 
-export interface PostMediaUploadResponse
-{
+export interface PostMediaUploadResponse {
     uid: string;
     name: string;
     mimetype: string;
     size: number;
 }
 
-export interface DeleteMediaIdResponse
-{
+export interface DeleteMediaIdResponse {
     success: boolean;
 }
 
-export interface PostRegisterRequest
-{
+export interface PostRegisterRequest {
     name: string;
     email: string;
     password: string;
@@ -64,26 +55,22 @@ export interface PostRegisterRequest
     callbackURL?: string;
 }
 
-export interface PostUserPermissionsSetRequest
-{
+export interface PostUserPermissionsSetRequest {
     userId: string;
     permissions: string[];
 }
 
-export interface PostUserPermissionsAddRequest
-{
+export interface PostUserPermissionsAddRequest {
     userId: string;
     permissions: string[];
 }
 
-export interface PostUserPermissionsRemoveRequest
-{
+export interface PostUserPermissionsRemoveRequest {
     userId: string;
     permissions: string[];
 }
 
-export interface GetAppContextResponse
-{
+export interface GetAppContextResponse {
     hasSession: boolean;
     user: GetAppContextResponseUser | null;
     activeOrganizationId: string | null;
@@ -91,44 +78,37 @@ export interface GetAppContextResponse
     permissions: string[];
 }
 
-export interface GetAppContextResponseUser
-{
+export interface GetAppContextResponseUser {
     id: string;
     name: string;
     email: string;
     avatar?: string | null;
 }
 
-export interface GetAppContextResponseOrganizationsItem
-{
+export interface GetAppContextResponseOrganizationsItem {
     id: string;
     name: string;
     logo?: string | null;
 }
 
-export interface PostDeviceRequestPairRequest
-{
+export interface PostDeviceRequestPairRequest {
     externalDeviceId: string;
 }
 
-export interface PostDeviceRequestPairResponse
-{
+export interface PostDeviceRequestPairResponse {
     code: string;
 }
 
-export interface PostDevicePairRequest
-{
+export interface PostDevicePairRequest {
     code: string;
     deviceName: string;
 }
 
-export interface PostDevicePairResponse
-{
+export interface PostDevicePairResponse {
     success: boolean;
 }
 
-export interface GetDeviceResponseItem
-{
+export interface GetDeviceResponseItem {
     id: string;
     name: string;
     status: string | null;
@@ -136,50 +116,59 @@ export interface GetDeviceResponseItem
     lastActiveAt: string | null;
 }
 
-export interface DeleteDeviceIdResponse
-{
+export interface DeleteDeviceIdResponse {
     success: boolean;
 }
 
-export interface EnterpriseApiClient
-{
+export interface EnterpriseApiClient {
     get: Get;
     post: Post;
     delete: Delete;
 }
 
-export interface Get
-{
+export interface Get {
     health(headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     media(headers?: Record<string, string>): Promise<{ data: GetMediaResponseItem[]; error: null } | { data: null; error: ProblemDetail }>;
+
     mediaSignedUrl(uid: string, headers?: Record<string, string>): Promise<{ data: GetMediaSignedUrlResponse; error: null } | { data: null; error: ProblemDetail }>;
+
     auth(param: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     userPermissionsList(userId: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     userPermissionsCheck(userId: string, permission: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     appContext(headers?: Record<string, string>): Promise<{ data: GetAppContextResponse; error: null } | { data: null; error: ProblemDetail }>;
+
     device(headers?: Record<string, string>): Promise<{ data: GetDeviceResponseItem[]; error: null } | { data: null; error: ProblemDetail }>;
 }
 
-export interface Post
-{
+export interface Post {
     mediaUpload(headers?: Record<string, string>): Promise<{ data: PostMediaUploadResponse; error: null } | { data: null; error: ProblemDetail }>;
+
     register(body: PostRegisterRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     auth(param: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     userPermissionsSet(body: PostUserPermissionsSetRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     userPermissionsAdd(body: PostUserPermissionsAddRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     userPermissionsRemove(body: PostUserPermissionsRemoveRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+
     deviceRequestPair(body: PostDeviceRequestPairRequest, headers?: Record<string, string>): Promise<{ data: PostDeviceRequestPairResponse; error: null } | { data: null; error: ProblemDetail }>;
+
     devicePair(body: PostDevicePairRequest, headers?: Record<string, string>): Promise<{ data: PostDevicePairResponse; error: null } | { data: null; error: ProblemDetail }>;
 }
 
-export interface Delete
-{
+export interface Delete {
     mediaId(id: string, headers?: Record<string, string>): Promise<{ data: DeleteMediaIdResponse; error: null } | { data: null; error: ProblemDetail }>;
+
     deviceId(id: string, headers?: Record<string, string>): Promise<{ data: DeleteDeviceIdResponse; error: null } | { data: null; error: ProblemDetail }>;
 }
 
-export function createClient(options: ClientOptions = {}): EnterpriseApiClient
-{
+export function createClient(options: ClientOptions = {}): EnterpriseApiClient {
     const baseUrl = options.baseUrl || 'http://localhost:3001';
     const credentials = options.credentials;
     const headers = options.headers || {};

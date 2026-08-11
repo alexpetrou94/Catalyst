@@ -1,4 +1,4 @@
-namespace Catalyst.Tests.Services;
+﻿namespace Catalyst.Tests.Services;
 
 public class OpenApiParserTests
 {
@@ -9,7 +9,7 @@ public class OpenApiParserTests
 
         Result<OpenApiParseResult> result = OpenApiParser.Parse(json);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value!.Document);
         Assert.NotNull(result.Value!.Diagnostic);
     }
@@ -21,7 +21,7 @@ public class OpenApiParserTests
 
         Result<OpenApiParseResult> result = OpenApiParser.Parse(json);
 
-        Assert.True(result.Success);
+        Assert.True(result.IsSuccess);
         Assert.NotEmpty(result.Value!.Diagnostic.Errors);
     }
 
@@ -30,6 +30,6 @@ public class OpenApiParserTests
     {
         Result<OpenApiParseResult> result = OpenApiParser.Parse(string.Empty);
 
-        Assert.False(result.Success);
+        Assert.False(result.IsSuccess);
     }
 }
