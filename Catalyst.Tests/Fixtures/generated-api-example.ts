@@ -10,6 +10,8 @@ export interface ProblemDetail<T = Record<string, unknown>> {
     extensions?: T;
 }
 
+export type ApiResult<T> = { data: T; error: null } | { data: null; error: ProblemDetail };
+
 export interface ClientOptions {
     baseUrl?: string;
     credentials?: RequestCredentials;
@@ -127,45 +129,45 @@ export interface EnterpriseApiClient {
 }
 
 export interface Get {
-    health(headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    health(headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    media(headers?: Record<string, string>): Promise<{ data: GetMediaResponseItem[]; error: null } | { data: null; error: ProblemDetail }>;
+    media(headers?: Record<string, string>): Promise<ApiResult<GetMediaResponseItem[]>>;
 
-    mediaSignedUrl(uid: string, headers?: Record<string, string>): Promise<{ data: GetMediaSignedUrlResponse; error: null } | { data: null; error: ProblemDetail }>;
+    mediaSignedUrl(uid: string, headers?: Record<string, string>): Promise<ApiResult<GetMediaSignedUrlResponse>>;
 
-    auth(param: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    auth(param: string, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    userPermissionsList(userId: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    userPermissionsList(userId: string, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    userPermissionsCheck(userId: string, permission: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    userPermissionsCheck(userId: string, permission: string, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    appContext(headers?: Record<string, string>): Promise<{ data: GetAppContextResponse; error: null } | { data: null; error: ProblemDetail }>;
+    appContext(headers?: Record<string, string>): Promise<ApiResult<GetAppContextResponse>>;
 
-    device(headers?: Record<string, string>): Promise<{ data: GetDeviceResponseItem[]; error: null } | { data: null; error: ProblemDetail }>;
+    device(headers?: Record<string, string>): Promise<ApiResult<GetDeviceResponseItem[]>>;
 }
 
 export interface Post {
-    mediaUpload(headers?: Record<string, string>): Promise<{ data: PostMediaUploadResponse; error: null } | { data: null; error: ProblemDetail }>;
+    mediaUpload(headers?: Record<string, string>): Promise<ApiResult<PostMediaUploadResponse>>;
 
-    register(body: PostRegisterRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    register(body: PostRegisterRequest, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    auth(param: string, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    auth(param: string, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    userPermissionsSet(body: PostUserPermissionsSetRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    userPermissionsSet(body: PostUserPermissionsSetRequest, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    userPermissionsAdd(body: PostUserPermissionsAddRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    userPermissionsAdd(body: PostUserPermissionsAddRequest, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    userPermissionsRemove(body: PostUserPermissionsRemoveRequest, headers?: Record<string, string>): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }>;
+    userPermissionsRemove(body: PostUserPermissionsRemoveRequest, headers?: Record<string, string>): Promise<ApiResult<void>>;
 
-    deviceRequestPair(body: PostDeviceRequestPairRequest, headers?: Record<string, string>): Promise<{ data: PostDeviceRequestPairResponse; error: null } | { data: null; error: ProblemDetail }>;
+    deviceRequestPair(body: PostDeviceRequestPairRequest, headers?: Record<string, string>): Promise<ApiResult<PostDeviceRequestPairResponse>>;
 
-    devicePair(body: PostDevicePairRequest, headers?: Record<string, string>): Promise<{ data: PostDevicePairResponse; error: null } | { data: null; error: ProblemDetail }>;
+    devicePair(body: PostDevicePairRequest, headers?: Record<string, string>): Promise<ApiResult<PostDevicePairResponse>>;
 }
 
 export interface Delete {
-    mediaId(id: string, headers?: Record<string, string>): Promise<{ data: DeleteMediaIdResponse; error: null } | { data: null; error: ProblemDetail }>;
+    mediaId(id: string, headers?: Record<string, string>): Promise<ApiResult<DeleteMediaIdResponse>>;
 
-    deviceId(id: string, headers?: Record<string, string>): Promise<{ data: DeleteDeviceIdResponse; error: null } | { data: null; error: ProblemDetail }>;
+    deviceId(id: string, headers?: Record<string, string>): Promise<ApiResult<DeleteDeviceIdResponse>>;
 }
 
 export function createClient(options: ClientOptions = {}): EnterpriseApiClient {
@@ -173,7 +175,7 @@ export function createClient(options: ClientOptions = {}): EnterpriseApiClient {
     const credentials = options.credentials;
     const headers = options.headers || {};
 
-    async function request<T>(path: string, method: string, init?: RequestOptions): Promise<{ data: T; error: null } | { data: null; error: ProblemDetail }> {
+    async function request<T>(path: string, method: string, init?: RequestOptions): Promise<ApiResult<T>> {
         const base = baseUrl.replace(/\/$/, "");
         const url = new URL(path, base || undefined);
         if (init?.params) {
@@ -238,79 +240,62 @@ export function createClient(options: ClientOptions = {}): EnterpriseApiClient {
 
     return {
         get: {
-            async health(headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async health(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/health', 'get', { headers, signal });
             },
-
-            async media(headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: GetMediaResponseItem[]; error: null } | { data: null; error: ProblemDetail }> {
+            async media(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMediaResponseItem[]>> {
                 return request<GetMediaResponseItem[]>('/api/media/', 'get', { headers, signal });
             },
-
-            async mediaSignedUrl(uid: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: GetMediaSignedUrlResponse; error: null } | { data: null; error: ProblemDetail }> {
+            async mediaSignedUrl(uid: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMediaSignedUrlResponse>> {
                 return request<GetMediaSignedUrlResponse>('/api/media/signed-url', 'get', { params: { uid }, headers, signal });
             },
-
-            async auth(param: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async auth(param: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>(`/api/auth/${encodeURIComponent(param)}`, 'get', { headers, signal });
             },
-
-            async userPermissionsList(userId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async userPermissionsList(userId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/user-permissions/list', 'get', { params: { userId }, headers, signal });
             },
-
-            async userPermissionsCheck(userId: string, permission: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async userPermissionsCheck(userId: string, permission: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/user-permissions/check', 'get', { params: { userId, permission }, headers, signal });
             },
-
-            async appContext(headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: GetAppContextResponse; error: null } | { data: null; error: ProblemDetail }> {
+            async appContext(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetAppContextResponse>> {
                 return request<GetAppContextResponse>('/api/app-context/', 'get', { headers, signal });
             },
-
-            async device(headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: GetDeviceResponseItem[]; error: null } | { data: null; error: ProblemDetail }> {
+            async device(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetDeviceResponseItem[]>> {
                 return request<GetDeviceResponseItem[]>('/api/device/', 'get', { headers, signal });
             },
         },
-
         post: {
-            async mediaUpload(headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: PostMediaUploadResponse; error: null } | { data: null; error: ProblemDetail }> {
+            async mediaUpload(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostMediaUploadResponse>> {
                 return request<PostMediaUploadResponse>('/api/media/upload', 'post', { headers, signal });
             },
-
-            async register(body: PostRegisterRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async register(body: PostRegisterRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/register', 'post', { body, headers, signal });
             },
-
-            async auth(param: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async auth(param: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>(`/api/auth/${encodeURIComponent(param)}`, 'post', { headers, signal });
             },
-
-            async userPermissionsSet(body: PostUserPermissionsSetRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async userPermissionsSet(body: PostUserPermissionsSetRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/user-permissions/set', 'post', { body, headers, signal });
             },
-
-            async userPermissionsAdd(body: PostUserPermissionsAddRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async userPermissionsAdd(body: PostUserPermissionsAddRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/user-permissions/add', 'post', { body, headers, signal });
             },
-
-            async userPermissionsRemove(body: PostUserPermissionsRemoveRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: void; error: null } | { data: null; error: ProblemDetail }> {
+            async userPermissionsRemove(body: PostUserPermissionsRemoveRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/user-permissions/remove', 'post', { body, headers, signal });
             },
-
-            async deviceRequestPair(body: PostDeviceRequestPairRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: PostDeviceRequestPairResponse; error: null } | { data: null; error: ProblemDetail }> {
+            async deviceRequestPair(body: PostDeviceRequestPairRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostDeviceRequestPairResponse>> {
                 return request<PostDeviceRequestPairResponse>('/api/device/request-pair', 'post', { body, headers, signal });
             },
-
-            async devicePair(body: PostDevicePairRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: PostDevicePairResponse; error: null } | { data: null; error: ProblemDetail }> {
+            async devicePair(body: PostDevicePairRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostDevicePairResponse>> {
                 return request<PostDevicePairResponse>('/api/device/pair', 'post', { body, headers, signal });
             },
         },
-
         delete: {
-            async mediaId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: DeleteMediaIdResponse; error: null } | { data: null; error: ProblemDetail }> {
+            async mediaId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<DeleteMediaIdResponse>> {
                 return request<DeleteMediaIdResponse>(`/api/media/${encodeURIComponent(id)}`, 'delete', { headers, signal });
             },
-
-            async deviceId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<{ data: DeleteDeviceIdResponse; error: null } | { data: null; error: ProblemDetail }> {
+            async deviceId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<DeleteDeviceIdResponse>> {
                 return request<DeleteDeviceIdResponse>(`/api/device/${encodeURIComponent(id)}`, 'delete', { headers, signal });
             },
         },

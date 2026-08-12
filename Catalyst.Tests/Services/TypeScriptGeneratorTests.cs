@@ -25,7 +25,7 @@ public class TypeScriptGeneratorTests
 
         Assert.False(string.IsNullOrWhiteSpace(code));
         Assert.Contains("interface Pet", code);
-        Assert.Contains("pets(headers?: Record<string, string>): Promise<{ data: Pet[]; error: null } | { data: null; error: ProblemDetail }>", code);
+        Assert.Contains("pets(headers?: Record<string, string>): Promise<ApiResult<Pet[]>>", code);
         Assert.Contains("interface Get", code);
     }
 
@@ -318,3 +318,4 @@ public class TypeScriptGeneratorTests
     private static string Normalize(string value) =>
         value.Replace("\r\n", "\n").Trim();
 }
+

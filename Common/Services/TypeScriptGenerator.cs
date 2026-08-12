@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -6,6 +6,7 @@ using Microsoft.OpenApi;
 using UPhoricLibrary.CodeGeneration.Common;
 using UPhoricLibrary.CodeGeneration.Common.Builders;
 using UPhoricLibrary.CodeGeneration.Common.Builders.Scopes;
+using UPhoricLibrary.CodeGeneration.Common.Languages;
 using UPhoricLibrary.CodeGeneration.Common.Model;
 using UPhoricLibrary.Extensions;
 
@@ -32,8 +33,8 @@ internal sealed class TypeScriptGenerator
     {
         List<OperationInfo> operations = ExtractOperations();
 
-        CodeBuilder ts = new(Language.TypeScript, new CodeBuilderOptions { BraceStyle = BraceStyle.KAndR });
-        FileScope file = ts.File("api.ts");
+        CodeBuilder<TypeScript> ts = new(new CodeBuilderOptions { BraceStyle = BraceStyle.KAndR });
+        FileScope<TypeScript> file = ts.File("api.ts");
 
         BuildHeader(file);
         BuildClientOptionsInterface(file);
@@ -50,7 +51,7 @@ internal sealed class TypeScriptGenerator
 
     public int SkippedPathCount { get; private set; }
 
-    private void BuildHeader(FileScope file)
+    private void BuildHeader(FileScope<TypeScript> file)
     {
         file.Comment(" Generated from " + _className + "\n Requires TypeScript target ES2015 or higher, or include ES2015 in lib");
 
@@ -76,9 +77,13 @@ internal sealed class TypeScriptGenerator
                 .Nullable()
                 .EndProperty()
             .EndInterface();
+
+        file.TypeAlias("ApiResult<T>", "{ data: T; error: null } | { data: null; error: ProblemDetail }")
+            .Export()
+            .EndTypeAlias();
     }
 
-    private static void BuildClientOptionsInterface(FileScope file)
+    private static void BuildClientOptionsInterface(FileScope<TypeScript> file)
     {
         file.Interface("ClientOptions")
             .Export()
@@ -94,7 +99,7 @@ internal sealed class TypeScriptGenerator
             .EndInterface();
     }
 
-    private static void BuildRequestOptionsInterface(FileScope file)
+    private static void BuildRequestOptionsInterface(FileScope<TypeScript> file)
     {
         file.Interface("RequestOptions")
             .Export()
@@ -113,7 +118,7 @@ internal sealed class TypeScriptGenerator
             .EndInterface();
     }
 
-    private void BuildSchemaInterfaces(FileScope file)
+    private void BuildSchemaInterfaces(FileScope<TypeScript> file)
     {
         IDictionary<string, IOpenApiSchema>? schemas = _document.Components?.Schemas;
         if (schemas == null || schemas.Count == 0)
@@ -127,7 +132,7 @@ internal sealed class TypeScriptGenerator
         }
     }
 
-    private void BuildInterfaceFromSchema(FileScope file, string name, IOpenApiSchema schema)
+    private void BuildInterfaceFromSchema(FileScope<TypeScript> file, string name, IOpenApiSchema schema)
     {
         if (!_generatedTypeNames.Add(name))
         {
@@ -140,7 +145,7 @@ internal sealed class TypeScriptGenerator
             return;
         }
 
-        InterfaceScope<FileScope> interfaceBuilder = file.Interface(name).Export();
+        InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder = file.Interface(name).Export();
 
         if (!string.IsNullOrWhiteSpace(schema.Description))
         {
@@ -159,14 +164,14 @@ internal sealed class TypeScriptGenerator
         interfaceBuilder.EndInterface();
     }
 
-    private static void BuildEnumFromSchema(FileScope file, string name, IOpenApiSchema schema)
+    private static void BuildEnumFromSchema(FileScope<TypeScript> file, string name, IOpenApiSchema schema)
     {
         if (schema.Enum is not { Count: > 0 })
         {
             return;
         }
 
-        EnumScope<FileScope> enumBuilder = file.Enum(SanitizeIdentifier(name)).Export();
+        EnumScope<TypeScript, FileScope<TypeScript>> enumBuilder = file.Enum(SanitizeIdentifier(name)).Export();
 
         HashSet<string> usedMembers = [];
 
@@ -197,11 +202,11 @@ internal sealed class TypeScriptGenerator
         enumBuilder.EndEnum();
     }
 
-    private void BuildInterfaceProperty(FileScope file, InterfaceScope<FileScope> interfaceBuilder, string parentName, string name, IOpenApiSchema schema, bool isRequired)
+    private void BuildInterfaceProperty(FileScope<TypeScript> file, InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder, string parentName, string name, IOpenApiSchema schema, bool isRequired)
     {
         string propertyType = ResolveType(file, parentName + ToPascalCase(name), schema);
 
-        PropertyScope<InterfaceScope<FileScope>> propertyBuilder = interfaceBuilder.Property(name, propertyType);
+        PropertyScope<TypeScript, InterfaceScope<TypeScript, FileScope<TypeScript>>> propertyBuilder = interfaceBuilder.Property(name, propertyType);
 
         if (!isRequired)
         {
@@ -211,7 +216,7 @@ internal sealed class TypeScriptGenerator
         propertyBuilder.EndProperty();
     }
 
-    private void BuildOperationTypeInterfaces(FileScope file, List<OperationInfo> operations)
+    private void BuildOperationTypeInterfaces(FileScope<TypeScript> file, List<OperationInfo> operations)
     {
         foreach (OperationInfo operation in operations)
         {
@@ -227,7 +232,7 @@ internal sealed class TypeScriptGenerator
         }
     }
 
-    private string ResolveType(FileScope file, string suggestedName, IOpenApiSchema schema)
+    private string ResolveType(FileScope<TypeScript> file, string suggestedName, IOpenApiSchema schema)
     {
         if (schema is OpenApiSchemaReference schemaRef)
         {
@@ -261,7 +266,7 @@ internal sealed class TypeScriptGenerator
         return OpenApiTypeMapper.MapSchema(schema);
     }
 
-    private string ResolveOneOf(FileScope file, string suggestedName, IOpenApiSchema schema)
+    private string ResolveOneOf(FileScope<TypeScript> file, string suggestedName, IOpenApiSchema schema)
     {
         if (schema.OneOf is not { Count: > 0 })
         {
@@ -287,10 +292,10 @@ internal sealed class TypeScriptGenerator
             && (type.Value & ~JsonSchemaType.Null) == 0;
     }
 
-    private void BuildApiClientInterface(FileScope file, List<OperationInfo> operations)
+    private void BuildApiClientInterface(FileScope<TypeScript> file, List<OperationInfo> operations)
     {
         string interfaceName = SanitizeIdentifier(ToPascalCase(_className)) + "Client";
-        InterfaceScope<FileScope> clientInterface = file.Interface(interfaceName).Export();
+        InterfaceScope<TypeScript, FileScope<TypeScript>> clientInterface = file.Interface(interfaceName).Export();
 
         IEnumerable<IGrouping<string, OperationInfo>> groups = operations.GroupBy(o => o.HttpMethod);
 
@@ -301,12 +306,12 @@ internal sealed class TypeScriptGenerator
             clientInterface.Property(group.Key, verbInterfaceName).EndProperty();
 
             // Named interface for this HTTP verb: export interface Get { ... }
-            InterfaceScope<FileScope> verbInterface = file.Interface(verbInterfaceName).Export();
+            InterfaceScope<TypeScript, FileScope<TypeScript>> verbInterface = file.Interface(verbInterfaceName).Export();
 
             foreach (OperationInfo operation in group)
             {
                 string methodName = StripHttpVerbPrefix(operation.Name, operation.HttpMethod);
-                MethodScope<InterfaceScope<FileScope>> method = verbInterface.Method(methodName);
+                MethodScope<TypeScript, InterfaceScope<TypeScript, FileScope<TypeScript>>> method = verbInterface.Method(methodName);
 
                 foreach (ParameterInfo param in operation.PathParams)
                 {
@@ -329,7 +334,7 @@ internal sealed class TypeScriptGenerator
 
                 method.Parameter("headers", "Record<string, string>").Nullable();
 
-                method.Returns("Promise<{ data: " + operation.ReturnType + "; error: null } | { data: null; error: ProblemDetail }>").EndMethod();
+                method.Returns("Promise<ApiResult<" + operation.ReturnType + ">>").EndMethod();
             }
 
             verbInterface.EndInterface();
@@ -338,7 +343,7 @@ internal sealed class TypeScriptGenerator
         clientInterface.EndInterface();
     }
 
-    private void BuildFactoryFunction(FileScope file, List<OperationInfo> operations)
+    private void BuildFactoryFunction(FileScope<TypeScript> file, List<OperationInfo> operations)
     {
         string interfaceName = SanitizeIdentifier(ToPascalCase(_className)) + "Client";
         string defaultBaseUrl = GetDefaultBaseUrl();
@@ -363,134 +368,128 @@ internal sealed class TypeScriptGenerator
                 b.Const("headers", (CodeType?)null, "options.headers || {}");
                 b.BlankLine();
 
-                b.Block("async function request<T>(path: string, method: string, init?: RequestOptions): Promise<{ data: T; error: null } | { data: null; error: ProblemDetail }>", req =>
-                {
-                    req.Const("base", (CodeType?)null, "baseUrl.replace(/\\/$/, \"\")");
-                    req.Const("url", (CodeType?)null, "new URL(path, base || undefined)");
-                    req.If("init?.params", p =>
+                b.Function("request", f => f
+                    .Async()
+                    .Generic("T")
+                    .Parameter("path", "string")
+                    .Parameter("method", "string")
+                    .Parameter("init", "RequestOptions").Nullable()
+                    .Returns("Promise<ApiResult<T>>")
+                    .Body(req =>
                     {
-                        p.Const("entries", (CodeType?)null, "Object.entries(init.params).filter(([, v]) => v !== undefined)");
-                        p.ForEach("[key, value]", "entries", e =>
+                        req.Const("base", (CodeType?)null, "baseUrl.replace(/\\/$/, \"\")");
+                        req.Const("url", (CodeType?)null, "new URL(path, base || undefined)");
+                        req.If("init?.params", p =>
                         {
-                            e.If("Array.isArray(value)", arr =>
-                                arr.ForEach("v", "value", v => v.Line("url.searchParams.append(key, v);")))
-                             .Else(other => other.Line("url.searchParams.append(key, String(value));"));
-                        });
-                    });
-                    req.BlankLine();
-                    req.Const("requestHeaders", "Record<string, string>", "{ ...headers, ...(init?.headers ?? {}) }");
-                    req.Var("body", "BodyInit | undefined");
-                    req.If("init?.body !== undefined", body =>
-                    {
-                        body.If("typeof init.body === \"object\" && init.body !== null && !(init.body instanceof FormData) && !(init.body instanceof Blob) && !(init.body instanceof ArrayBuffer)", obj =>
-                        {
-                            obj.If("!(\"Content-Type\" in requestHeaders)", ct =>
-                                ct.Line("requestHeaders[\"Content-Type\"] = \"application/json\";"));
-                            obj.Line("body = JSON.stringify(init.body);");
-                        }).Else(raw => raw.Line("body = init.body as BodyInit;"));
-                    });
-                    req.BlankLine();
-                    req.Line("const response = await fetch(url.href, {");
-                    req.Line("    method,");
-                    req.Line("    credentials,");
-                    req.Line("    headers: requestHeaders,");
-                    req.Line("    body,");
-                    req.Line("    signal: init?.signal,");
-                    req.Line("});");
-                    req.BlankLine();
-                    req.If("!response.ok", err =>
-                    {
-                        err.Const("errorText", (CodeType?)null, "await response.text().catch(() => \"\")");
-                        err.Var("problemDetail", "ProblemDetail", "{ status: response.status, title: response.statusText }");
-                        err.Try(t =>
-                        {
-                            t.Const("parsed", (CodeType?)null, "JSON.parse(errorText)");
-                            t.If("parsed && typeof parsed === \"object\"", parsed =>
+                            p.Const("entries", (CodeType?)null, "Object.entries(init.params).filter(([, v]) => v !== undefined)");
+                            p.ForEach("[key, value]", "entries", e =>
                             {
-                                parsed.Line("const { type, title, status, detail, instance, ...rest } = parsed;");
-                                parsed.Line("problemDetail = {");
-                                parsed.Line("    type,");
-                                parsed.Line("    title: title || response.statusText,");
-                                parsed.Line("    status: status || response.status,");
-                                parsed.Line("    detail: detail || errorText,");
-                                parsed.Line("    instance,");
-                                parsed.Line("    extensions: Object.keys(rest).length > 0 ? rest : undefined,");
-                                parsed.Line("};");
+                                e.If("Array.isArray(value)", arr =>
+                                    arr.ForEach("v", "value", v => v.Line("url.searchParams.append(key, v);")))
+                                 .Else(other => other.Line("url.searchParams.append(key, String(value));"));
                             });
-                        }).Catch(null, c =>
-                        {
-                            c.Line("problemDetail = { status: response.status, title: response.statusText, detail: errorText || `HTTP ${response.status}` };");
                         });
-                        err.Return("{ data: null, error: problemDetail }");
-                    });
-                    req.BlankLine();
-                    req.Const("text", (CodeType?)null, "await response.text()");
-                    req.Return("{ data: (text ? JSON.parse(text) : undefined) as T, error: null }");
-                });
+                        req.BlankLine();
+                        req.Const("requestHeaders", "Record<string, string>", "{ ...headers, ...(init?.headers ?? {}) }");
+                        req.Var("body", "BodyInit | undefined");
+                        req.If("init?.body !== undefined", body =>
+                        {
+                            body.If("typeof init.body === \"object\" && init.body !== null && !(init.body instanceof FormData) && !(init.body instanceof Blob) && !(init.body instanceof ArrayBuffer)", obj =>
+                            {
+                                obj.If("!(\"Content-Type\" in requestHeaders)", ct =>
+                                    ct.Line("requestHeaders[\"Content-Type\"] = \"application/json\";"));
+                                obj.Line("body = JSON.stringify(init.body);");
+                            }).Else(raw => raw.Line("body = init.body as BodyInit;"));
+                        });
+                        req.BlankLine();
+                        req.Line("const response = await fetch(url.href, {");
+                        req.Line("    method,");
+                        req.Line("    credentials,");
+                        req.Line("    headers: requestHeaders,");
+                        req.Line("    body,");
+                        req.Line("    signal: init?.signal,");
+                        req.Line("});");
+                        req.BlankLine();
+                        req.If("!response.ok", err =>
+                        {
+                            err.Const("errorText", (CodeType?)null, "await response.text().catch(() => \"\")");
+                            err.Var("problemDetail", "ProblemDetail", "{ status: response.status, title: response.statusText }");
+                            err.Try(t =>
+                            {
+                                t.Const("parsed", (CodeType?)null, "JSON.parse(errorText)");
+                                t.If("parsed && typeof parsed === \"object\"", parsed =>
+                                {
+                                    parsed.Line("const { type, title, status, detail, instance, ...rest } = parsed;");
+                                    parsed.Line("problemDetail = {");
+                                    parsed.Line("    type,");
+                                    parsed.Line("    title: title || response.statusText,");
+                                    parsed.Line("    status: status || response.status,");
+                                    parsed.Line("    detail: detail || errorText,");
+                                    parsed.Line("    instance,");
+                                    parsed.Line("    extensions: Object.keys(rest).length > 0 ? rest : undefined,");
+                                    parsed.Line("};");
+                                });
+                            }).Catch(null, c =>
+                            {
+                                c.Line("problemDetail = { status: response.status, title: response.statusText, detail: errorText || `HTTP ${response.status}` };");
+                            });
+                            err.Return("{ data: null, error: problemDetail }");
+                        });
+                        req.BlankLine();
+                        req.Const("text", (CodeType?)null, "await response.text()");
+                        req.Return("{ data: (text ? JSON.parse(text) : undefined) as T, error: null }");
+                    }));
                 b.BlankLine();
 
-                b.Block("return", ret =>
+                b.ObjectLiteral("return", obj =>
                 {
                     IEnumerable<IGrouping<string, OperationInfo>> methodGroups = operations.GroupBy(o => o.HttpMethod);
-                    int groupIndex = 0;
-                    int totalGroups = methodGroups.Count();
 
                     foreach (IGrouping<string, OperationInfo> group in methodGroups)
                     {
-                        ret.Block($"{group.Key}:", g =>
+                        obj.Member(group.Key, g =>
                         {
-                            OperationInfo[] groupOps = group.ToArray();
-                            for (int i = 0; i < groupOps.Length; i++)
+                            foreach (OperationInfo operation in group.ToArray())
                             {
-                                OperationInfo operation = groupOps[i];
-
-                                List<string> signatureParams = [];
-                                foreach (ParameterInfo param in operation.PathParams)
-                                {
-                                    signatureParams.Add($"{param.Name}: {param.Type}");
-                                }
-
-                                foreach (ParameterInfo param in operation.QueryParams)
-                                {
-                                    string optional = param.Required ? string.Empty : "?";
-                                    signatureParams.Add($"{param.Name}{optional}: {param.Type}");
-                                }
-
-                                if (operation.RequestBodyType != null)
-                                {
-                                    signatureParams.Add($"body: {operation.RequestBodyType}");
-                                }
-
-                                signatureParams.Add("headers?: Record<string, string>");
-                                signatureParams.Add("signal?: AbortSignal");
-
-                                string paramsList = string.Join(", ", signatureParams);
                                 string methodName = StripHttpVerbPrefix(operation.Name, operation.HttpMethod);
 
-                                if (!string.IsNullOrWhiteSpace(operation.Summary))
+                                g.Member(methodName, m =>
                                 {
-                                    g.Line(BuildJSDoc(operation.Summary));
-                                }
+                                    if (!string.IsNullOrWhiteSpace(operation.Summary))
+                                    {
+                                        m.Doc(operation.Summary);
+                                    }
 
-                                g.Block($"async {methodName}({paramsList}): Promise<{{ data: {operation.ReturnType}; error: null }} | {{ data: null; error: ProblemDetail }}>", m =>
-                                    m.Return($"request<{operation.ReturnType}>({BuildUrl(operation.Path, operation.PathParams)}, '{operation.HttpMethod}'{BuildInitArgument(operation.QueryParams, operation.RequestBodyType != null)})"),
-                                    close: ",");
+                                    m.Async();
 
-                                if (i < groupOps.Length - 1)
-                                {
-                                    g.BlankLine();
-                                }
+                                    foreach (ParameterInfo param in operation.PathParams)
+                                    {
+                                        m.Parameter(param.Name, param.Type);
+                                    }
+
+                                    foreach (ParameterInfo param in operation.QueryParams)
+                                    {
+                                        m.Parameter(param.Name, param.Type);
+                                        if (!param.Required)
+                                        {
+                                            m.Nullable();
+                                        }
+                                    }
+
+                                    if (operation.RequestBodyType != null)
+                                    {
+                                        m.Parameter("body", operation.RequestBodyType);
+                                    }
+
+                                    m.Parameter("headers", "Record<string, string>").Nullable();
+                                    m.Parameter("signal", "AbortSignal").Nullable();
+                                    m.Returns($"Promise<ApiResult<{operation.ReturnType}>>");
+                                    m.Body(fn => fn.Return($"request<{operation.ReturnType}>({BuildUrl(operation.Path, operation.PathParams)}, '{operation.HttpMethod}'{BuildInitArgument(operation.QueryParams, operation.RequestBodyType != null)})"));
+                                });
                             }
-                        }, close: ",");
-
-                        if (groupIndex < totalGroups - 1)
-                        {
-                            ret.BlankLine();
-                        }
-
-                        groupIndex++;
+                        });
                     }
-                }, close: ";");
+                });
             })
             .EndFunction();
     }
@@ -796,17 +795,6 @@ internal sealed class TypeScriptGenerator
         return sanitized;
     }
 
-    private static string BuildJSDoc(string description)
-    {
-        if (string.IsNullOrWhiteSpace(description))
-        {
-            return string.Empty;
-        }
-
-        string trimmed = description.Trim().Replace("\r", string.Empty).Replace("\n", " ");
-        return $"/** {trimmed} */";
-    }
-
     private static string StripHttpVerbPrefix(string name, string httpMethod)
     {
         if (name.Length > httpMethod.Length && name.StartsWith(httpMethod, StringComparison.OrdinalIgnoreCase))
@@ -963,4 +951,5 @@ internal sealed class TypeScriptGenerator
         public required bool Required { get; init; }
     }
 }
+
 
