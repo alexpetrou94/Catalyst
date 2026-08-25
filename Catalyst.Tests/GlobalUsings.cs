@@ -1,5 +1,5 @@
 global using Xunit;
-global using UPhoricLibrary.Common;
+global using Auxil.Common;
 global using Catalyst.Common.Enums;
 global using Catalyst.Common.Models;
 global using Catalyst.Common.Services;

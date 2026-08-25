@@ -8,7 +8,7 @@ using Microsoft.OpenApi;
 using Microsoft.OpenApi.Reader;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using UPhoricLibrary.Common;
+using Auxil.Common;
 
 namespace Catalyst.Commands.Gen;
 

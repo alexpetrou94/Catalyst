@@ -1,6 +1,6 @@
 using Catalyst.Common.Models;
 using Microsoft.OpenApi.Reader;
-using UPhoricLibrary.Common;
+using Auxil.Common;
 
 namespace Catalyst.Common.Services;
 

@@ -2,9 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+    tags: ['v*']
 
 jobs:
   build-and-test:
@@ -18,7 +16,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Configure private feed
-        run: dotnet nuget update source github-uphoricstudios --username USERNAME --password ${{ secrets.UPHORIC_PACKAGES_TOKEN }} --store-password-in-clear-text
+        run: dotnet nuget update source github-auxil --username USERNAME --password ${{ secrets.AUXIL_PACKAGES_TOKEN }} --store-password-in-clear-text
 
       - name: Restore
         run: dotnet restore
@@ -31,7 +29,7 @@ jobs:
 
   publish:
     needs: build-and-test
-    if: github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -44,10 +42,15 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Configure private feed
-        run: dotnet nuget update source github-uphoricstudios --username USERNAME --password ${{ secrets.UPHORIC_PACKAGES_TOKEN }} --store-password-in-clear-text
+        run: dotnet nuget update source github-auxil --username USERNAME --password ${{ secrets.AUXIL_PACKAGES_TOKEN }} --store-password-in-clear-text
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Pack
-        run: dotnet pack --configuration Release --output ./nupkg
+        run: dotnet pack --configuration Release --output ./nupkg /p:Version=${{ steps.version.outputs.version }}
 
       - name: Push to GitHub Packages
         run: dotnet nuget push ./nupkg/*.nupkg --source https://nuget.pkg.github.com/alexpetrou94/index.json --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate

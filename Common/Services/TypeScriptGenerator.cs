@@ -3,12 +3,12 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi;
-using UPhoricLibrary.CodeGeneration.Common;
-using UPhoricLibrary.CodeGeneration.Common.Builders;
-using UPhoricLibrary.CodeGeneration.Common.Builders.Scopes;
-using UPhoricLibrary.CodeGeneration.Common.Languages;
-using UPhoricLibrary.CodeGeneration.Common.Model;
-using UPhoricLibrary.Extensions;
+using Auxil.CodeGeneration.Common;
+using Auxil.CodeGeneration.Common.Builders;
+using Auxil.CodeGeneration.Common.Builders.Scopes;
+using Auxil.CodeGeneration.Common.Languages;
+using Auxil.CodeGeneration.Common.Model;
+using Auxil.Extensions;
 
 namespace Catalyst.Common.Services;
 

@@ -1,6 +1,6 @@
 using Catalyst.Common.Enums;
 using Catalyst.Common.Models;
-using UPhoricLibrary.Common;
+using Auxil.Common;
 
 namespace Catalyst.Common.Services;
 
