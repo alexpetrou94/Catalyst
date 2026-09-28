@@ -143,6 +143,142 @@ public class TypeScriptGeneratorTests
     }
 
     [Fact]
+    public void Generate_BooleanQueryParameters_AcceptedByParamsType()
+    {
+        string json = """
+        {
+            "openapi": "3.0.3",
+            "info": { "title": "BooleanQueryTest", "version": "1.0" },
+            "paths": {
+                "/items": {
+                    "get": {
+                        "parameters": [
+                            { "name": "sms_enabled", "in": "query", "schema": { "type": "boolean" } }
+                        ],
+                        "responses": {
+                            "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "string" } } } }
+                        }
+                    }
+                }
+            }
+        }
+        """;
+
+        OpenApiDocument document = ParseDocument(json);
+        TypeScriptGenerator generator = new TypeScriptGenerator(document, "BooleanQueryTest");
+        string code = generator.Generate();
+
+        Assert.Contains("params?: Record<string, string | string[] | number | boolean | undefined>", code);
+        Assert.Contains("smsEnabled?: boolean", code);
+        Assert.Contains("params: { sms_enabled: smsEnabled }", code);
+    }
+
+    [Fact]
+    public void Generate_DefaultResponseOnly_UsesDefaultSchemaAsReturnType()
+    {
+        string json = """
+        {
+            "openapi": "3.0.3",
+            "info": { "title": "DefaultResponseTest", "version": "1.0" },
+            "paths": {
+                "/items": {
+                    "get": {
+                        "responses": {
+                            "default": {
+                                "description": "Success",
+                                "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemList" } } }
+                            }
+                        }
+                    }
+                }
+            },
+            "components": {
+                "schemas": {
+                    "ItemList": {
+                        "type": "object",
+                        "required": [ "items" ],
+                        "properties": { "items": { "type": "array", "items": { "type": "string" } } }
+                    }
+                }
+            }
+        }
+        """;
+
+        OpenApiDocument document = ParseDocument(json);
+        TypeScriptGenerator generator = new TypeScriptGenerator(document, "DefaultResponseTest");
+        string code = generator.Generate();
+
+        Assert.Contains("interface ItemList", code);
+        Assert.Contains("items(headers?: Record<string, string>): Promise<ApiResult<ItemList>>", code);
+    }
+
+    [Fact]
+    public void Generate_ExplicitSuccessResponse_TakesPrecedenceOverDefault()
+    {
+        string json = """
+        {
+            "openapi": "3.0.3",
+            "info": { "title": "PrecedenceTest", "version": "1.0" },
+            "paths": {
+                "/items": {
+                    "get": {
+                        "responses": {
+                            "200": {
+                                "description": "OK",
+                                "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessBody" } } }
+                            },
+                            "default": {
+                                "description": "Error",
+                                "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FailureBody" } } }
+                            }
+                        }
+                    }
+                }
+            },
+            "components": {
+                "schemas": {
+                    "SuccessBody": { "type": "object", "properties": { "ok": { "type": "boolean" } } },
+                    "FailureBody": { "type": "object", "properties": { "detail": { "type": "string" } } }
+                }
+            }
+        }
+        """;
+
+        OpenApiDocument document = ParseDocument(json);
+        TypeScriptGenerator generator = new TypeScriptGenerator(document, "PrecedenceTest");
+        string code = generator.Generate();
+
+        Assert.Contains("Promise<ApiResult<SuccessBody>>", code);
+        Assert.DoesNotContain("Promise<ApiResult<FailureBody>>", code);
+    }
+
+    [Fact]
+    public void Generate_DefaultResponseWithoutSchema_UsesVoid()
+    {
+        string json = """
+        {
+            "openapi": "3.0.3",
+            "info": { "title": "DefaultNoContentTest", "version": "1.0" },
+            "paths": {
+                "/items": {
+                    "delete": {
+                        "responses": {
+                            "default": { "description": "No content" }
+                        }
+                    }
+                }
+            }
+        }
+        """;
+
+        OpenApiDocument document = ParseDocument(json);
+        TypeScriptGenerator generator = new TypeScriptGenerator(document, "DefaultNoContentTest");
+        string code = generator.Generate();
+
+        Assert.Contains("items(headers?: Record<string, string>): Promise<ApiResult<void>>", code);
+    }
+
+    [Fact]
     public void Generate_ContentType_SetAutomaticallyForJsonBodies()
     {
         string json = """

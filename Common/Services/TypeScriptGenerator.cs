@@ -103,7 +103,7 @@ internal sealed class TypeScriptGenerator
     {
         file.Interface("RequestOptions")
             .Export()
-            .Property("params", "Record<string, string | string[] | number | undefined>")
+            .Property("params", "Record<string, string | string[] | number | boolean | undefined>")
                 .Nullable()
                 .EndProperty()
             .Property("body", "unknown")
@@ -858,6 +858,17 @@ internal sealed class TypeScriptGenerator
         foreach (KeyValuePair<string, IOpenApiResponse> entry in operation.Responses)
         {
             if (entry.Key.StartsWith("2"))
+            {
+                return GetContentSchema(entry.Value);
+            }
+        }
+
+        // Some APIs (e.g. ASP.NET Core's ProducesDefaultResponseType) describe
+        // the success payload as the `default` response instead of a 2xx status.
+        // Fall back to it when no success response is declared.
+        foreach (KeyValuePair<string, IOpenApiResponse> entry in operation.Responses)
+        {
+            if (entry.Key.Equals("default", StringComparison.OrdinalIgnoreCase))
             {
                 return GetContentSchema(entry.Value);
             }

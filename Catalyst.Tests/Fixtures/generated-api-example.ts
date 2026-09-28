@@ -19,7 +19,7 @@ export interface ClientOptions {
 }
 
 export interface RequestOptions {
-    params?: Record<string, string | string[] | number | undefined>;
+    params?: Record<string, string | string[] | number | boolean | undefined>;
     body?: unknown;
     headers?: Record<string, string>;
     signal?: AbortSignal;
