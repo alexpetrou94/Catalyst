@@ -26,13 +26,16 @@ internal static class SourceResolver
         return SourceType.FilePath;
     }
 
-    public static async Task<Result<SourceResolveResult>> Resolve(string source, CancellationToken cancellationToken)
+    public static Task<Result<SourceResolveResult>> Resolve(string source, CancellationToken cancellationToken)
+        => Resolve(source, insecure: false, cancellationToken);
+
+    public static async Task<Result<SourceResolveResult>> Resolve(string source, bool insecure, CancellationToken cancellationToken)
     {
         SourceType type = DetermineSourceType(source);
 
         if (type == SourceType.Url)
         {
-            return await ResolveUrl(source, cancellationToken).ConfigureAwait(false);
+            return await ResolveUrl(source, insecure, cancellationToken).ConfigureAwait(false);
         }
 
         if (type == SourceType.FilePath)
@@ -43,11 +46,26 @@ internal static class SourceResolver
         return Result<SourceResolveResult>.Error($"Unrecognized source type: {source}");
     }
 
-    private static async Task<Result<SourceResolveResult>> ResolveUrl(string url, CancellationToken cancellationToken)
+    internal static HttpClientHandler CreateHttpHandler(bool insecure)
+    {
+        HttpClientHandler handler = new();
+
+        if (insecure)
+        {
+            // Opt-in only: skip TLS certificate validation when fetching a remote spec.
+            // Never enabled unless the caller explicitly requests it.
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        }
+
+        return handler;
+    }
+
+    private static async Task<Result<SourceResolveResult>> ResolveUrl(string url, bool insecure, CancellationToken cancellationToken)
     {
         try
         {
-            using HttpClient client = new HttpClient();
+            using HttpClientHandler handler = CreateHttpHandler(insecure);
+            using HttpClient client = new HttpClient(handler);
             client.Timeout = HttpTimeout;
             client.DefaultRequestHeaders.Add("User-Agent", "Catalyst-CLI/1.0");
             string content = await client.GetStringAsync(url, cancellationToken).ConfigureAwait(false);

@@ -17,6 +17,14 @@ public class OpenApiCommandTests
     };
 
     [Fact]
+    public void Insecure_DefaultsToFalse_SoCertificateValidationStaysOn()
+    {
+        OpenApiCommand.Settings settings = new();
+
+        Assert.False(settings.Insecure);
+    }
+
+    [Fact]
     public void ResolveSkipPaths_UsesCli_WhenProvided()
     {
         List<string> result = OpenApiCommand.ResolveSkipPaths(["/cli/"], ConfigWith("/cfg/"));

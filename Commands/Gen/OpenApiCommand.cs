@@ -37,6 +37,10 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         [Description("Path prefixes to skip during generation (e.g. /api/auth/). Repeatable or comma-separated. Overrides catalyst.config.json.")]
         public string[]? SkipPaths { get; init; }
 
+        [CommandOption("--insecure")]
+        [Description("Skip TLS certificate validation when fetching a remote OpenAPI spec over HTTPS. Only use with a local server that has an untrusted (e.g. self-signed) certificate. Validation stays enabled by default.")]
+        public bool Insecure { get; init; }
+
         public override ValidationResult Validate()
         {
             if (string.IsNullOrWhiteSpace(Source))
@@ -58,7 +62,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 
     protected override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
-        Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, cancellationToken).ConfigureAwait(false);
+        Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, settings.Insecure, cancellationToken).ConfigureAwait(false);
         if (!resolveResult.IsSuccess)
         {
             AnsiConsole.MarkupLine($"[red]Error:[/] {resolveResult.ErrorMessage}");
