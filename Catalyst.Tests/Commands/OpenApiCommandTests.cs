@@ -67,17 +67,19 @@ public class OpenApiCommandTests
     [Fact]
     public void ResolveOutputPath_UsesClassName_WhenOutputEndsWithSeparator()
     {
-        string result = OpenApiCommand.ResolveOutputPath("src\\external-apis\\", "CommunicationApi");
+        char separator = Path.DirectorySeparatorChar;
+        string result = OpenApiCommand.ResolveOutputPath($"src{separator}external-apis{separator}", "CommunicationApi");
 
-        Assert.Equal(Path.Combine("src\\external-apis", "CommunicationApi.ts"), result);
+        Assert.Equal(Path.Combine($"src{separator}external-apis", "CommunicationApi.ts"), result);
     }
 
     [Fact]
     public void ResolveOutputPath_DefaultsToApi_WhenOutputIsDirectoryAndNoClassName()
     {
-        string result = OpenApiCommand.ResolveOutputPath("src\\external-apis\\", null);
+        char separator = Path.DirectorySeparatorChar;
+        string result = OpenApiCommand.ResolveOutputPath($"src{separator}external-apis{separator}", null);
 
-        Assert.Equal(Path.Combine("src\\external-apis", "api.ts"), result);
+        Assert.Equal(Path.Combine($"src{separator}external-apis", "api.ts"), result);
     }
 
     [Fact]
@@ -108,9 +110,12 @@ public class OpenApiCommandTests
     [Fact]
     public void ResolveOutputPath_SanitizesInvalidFileNameCharacters()
     {
-        string result = OpenApiCommand.ResolveOutputPath("out\\", "My:Api*?");
+        char separator = Path.DirectorySeparatorChar;
 
-        Assert.Equal(Path.Combine("out", "My_Api__.ts"), result);
+        // '/' is invalid in file names on both Windows and Unix.
+        string result = OpenApiCommand.ResolveOutputPath($"out{separator}", "My/Api");
+
+        Assert.Equal(Path.Combine("out", "My_Api.ts"), result);
     }
 
     [Fact]
