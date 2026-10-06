@@ -21,35 +21,35 @@ public class TypeScriptGeneratorMinimalTests
 
         // Component schema + $ref resolution
         Assert.Contains("interface Widget", code);
-        Assert.Contains("widgets(limit?: number, _class?: string, headers?: Record<string, string>): Promise<ApiResult<Widget[]>>", code);
+        Assert.Contains("widgets(limit?: number, _class?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Widget[]>>", code);
         Assert.Contains("interface Get", code);
 
         // Request body ($ref) + created (201) response
-        Assert.Contains("widgets(body: Widget, headers?: Record<string, string>): Promise<ApiResult<Widget>>", code);
+        Assert.Contains("widgets(body: Widget, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Widget>>", code);
         Assert.Contains("interface Post", code);
 
         // Path parameter
-        Assert.Contains("widgetsId(id: string, headers?: Record<string, string>): Promise<ApiResult<Widget>>", code);
+        Assert.Contains("widgetsId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Widget>>", code);
 
         // No-content (204) and no-response => void return
-        Assert.Contains("widgetsId(id: string, headers?: Record<string, string>): Promise<ApiResult<void>>", code);
-        Assert.Contains("void(headers?: Record<string, string>): Promise<ApiResult<void>>", code);
+        Assert.Contains("widgetsId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>", code);
+        Assert.Contains("void(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>", code);
 
         // Primitive returns
-        Assert.Contains("ping(headers?: Record<string, string>): Promise<ApiResult<string>>", code);
-        Assert.Contains("count(headers?: Record<string, string>): Promise<ApiResult<number>>", code);
-        Assert.Contains("flag(headers?: Record<string, string>): Promise<ApiResult<boolean>>", code);
+        Assert.Contains("ping(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>>", code);
+        Assert.Contains("count(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<number>>", code);
+        Assert.Contains("flag(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean>>", code);
 
         // Primitive array return
-        Assert.Contains("items(headers?: Record<string, string>): Promise<ApiResult<string[]>>", code);
+        Assert.Contains("items(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string[]>>", code);
 
         // Inline request/response objects become named interfaces
-        Assert.Contains("echo(body: PostEchoRequest, headers?: Record<string, string>): Promise<ApiResult<PostEchoResponse>>", code);
+        Assert.Contains("echo(body: PostEchoRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostEchoResponse>>", code);
         Assert.Contains("interface PostEchoRequest", code);
         Assert.Contains("interface PostEchoResponse", code);
 
         // Inline nested object return becomes a named response interface
-        Assert.Contains("nested(headers?: Record<string, string>): Promise<ApiResult<GetNestedResponse>>", code);
+        Assert.Contains("nested(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetNestedResponse>>", code);
         Assert.Contains("interface GetNestedResponse", code);
         Assert.Contains("tags: string[]", code);
     }
@@ -63,7 +63,7 @@ public class TypeScriptGeneratorMinimalTests
         Assert.Contains("limit?: number", code);
 
         // Reserved word parameter uses a valid identifier binding (server name preserved as key)
-        Assert.Contains("widgets(limit?: number, _class?: string, headers?: Record<string, string>): Promise<ApiResult<Widget[]>>", code);
+        Assert.Contains("widgets(limit?: number, _class?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Widget[]>>", code);
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class TypeScriptGeneratorMinimalTests
         string code = Generate("Fixtures/openapi-minimal.json", "Minimal API");
 
         // Required query param keeps its name; hyphenated param becomes camelCase and optional
-        Assert.Contains("search(q: string, userId?: string, headers?: Record<string, string>): Promise<ApiResult<void>>", code);
+        Assert.Contains("search(q: string, userId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>", code);
     }
 
     [Fact]
