@@ -124,4 +124,26 @@ public class OpenApiCommandTests
         Assert.Equal(string.Empty, OpenApiCommand.ResolveOutputPath("", null));
         Assert.Equal(string.Empty, OpenApiCommand.ResolveOutputPath("   ", null));
     }
+
+    [Fact]
+    public void Validate_AllowsMissingSource_ForConfigDrivenGeneration()
+    {
+        Assert.True(new OpenApiCommand.Settings().Validate().Successful);
+    }
+
+    [Fact]
+    public void Validate_RejectsSingleClientOptions_WithoutSource()
+    {
+        Assert.False(new OpenApiCommand.Settings { Language = "typescript", Output = "api.ts" }.Validate().Successful);
+        Assert.False(new OpenApiCommand.Settings { ClassName = "Api" }.Validate().Successful);
+        Assert.False(new OpenApiCommand.Settings { SkipPaths = ["/x/"] }.Validate().Successful);
+        Assert.False(new OpenApiCommand.Settings { Insecure = true }.Validate().Successful);
+    }
+
+    [Fact]
+    public void Validate_RequiresOutput_WhenLanguageIsGivenWithSource()
+    {
+        Assert.False(new OpenApiCommand.Settings { Source = "spec.json", Language = "typescript" }.Validate().Successful);
+        Assert.True(new OpenApiCommand.Settings { Source = "spec.json", Language = "typescript", Output = "api.ts" }.Validate().Successful);
+    }
 }

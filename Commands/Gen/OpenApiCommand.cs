@@ -18,7 +18,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
     public class Settings : CommandSettings
     {
         [CommandOption("--source <SOURCE>")]
-        [Description("Path to a local JSON file or a URL to an OpenAPI specification")]
+        [Description("Path to a local JSON file or a URL to an OpenAPI specification. Omit it to generate every client defined in catalyst.config.json.")]
         public string Source { get; init; } = string.Empty;
 
         [CommandOption("--language <LANGUAGE>")]
@@ -45,7 +45,14 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         {
             if (string.IsNullOrWhiteSpace(Source))
             {
-                return ValidationResult.Error("The --source option is required.");
+                // Without --source the command generates every configured client, so the
+                // single-client options do not apply.
+                if (HasSingleClientOptions())
+                {
+                    return ValidationResult.Error("--language, --output, --class-name, --skip-paths and --insecure require --source. Pass --source, or omit the single-client options to generate every client from catalyst.config.json.");
+                }
+
+                return base.Validate();
             }
 
             if (!string.IsNullOrWhiteSpace(Language))
@@ -58,10 +65,24 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 
             return base.Validate();
         }
+
+        private bool HasSingleClientOptions()
+        {
+            return !string.IsNullOrWhiteSpace(Language)
+                || !string.IsNullOrWhiteSpace(Output)
+                || !string.IsNullOrWhiteSpace(ClassName)
+                || SkipPaths is { Length: > 0 }
+                || Insecure;
+        }
     }
 
     protected override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(settings.Source))
+        {
+            return await ExecuteConfiguredClientsAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, settings.Insecure, cancellationToken).ConfigureAwait(false);
         if (!resolveResult.IsSuccess)
         {
@@ -87,6 +108,69 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         }
 
         return ExecuteValidation(resolveResult.Value!.DisplayPath, parseResult.Value!.Document, parseResult.Value!.Diagnostic);
+    }
+
+    /// <summary>
+    /// Generates every client defined under gen.openapi.clients in the nearest catalyst.config.json.
+    /// Exit code 0 only when every configured client was written.
+    /// </summary>
+    private static async Task<int> ExecuteConfiguredClientsAsync(CancellationToken cancellationToken)
+    {
+        ConfigLoadResult loadResult = ConfigLoader.LoadDetailed(Directory.GetCurrentDirectory());
+
+        if (loadResult.Error is not null)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(loadResult.Error)}");
+            return 1;
+        }
+
+        if (loadResult.Config is null || loadResult.Path is null)
+        {
+            AnsiConsole.MarkupLine("[red]Error:[/] No catalyst.config.json found in this directory or any parent. Pass --source to generate a single client.");
+            return 1;
+        }
+
+        if (loadResult.Config.Gen.OpenApi.Clients.Count == 0)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(loadResult.Path)} defines no clients under gen.openapi.clients.");
+            return 1;
+        }
+
+        string configDirectory = Path.GetDirectoryName(loadResult.Path)!;
+
+        AnsiConsole.MarkupLine($"[grey]Generating {loadResult.Config.Gen.OpenApi.Clients.Count} client(s) from[/] {Markup.Escape(loadResult.Path)}");
+
+        List<ConfiguredClientOutcome> outcomes = await ConfiguredClientRunner
+            .RunAsync(loadResult.Config, configDirectory, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (ConfiguredClientOutcome outcome in outcomes)
+        {
+            if (outcome.Success)
+            {
+                AnsiConsole.MarkupLine($"[green]TypeScript generated:[/] {Markup.Escape(outcome.OutputPath!)}");
+
+                foreach (string warning in outcome.Warnings)
+                {
+                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
+                }
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(outcome.Name)}: {Markup.Escape(outcome.Error ?? "Unknown error")}");
+            }
+        }
+
+        int failed = outcomes.Count((outcome) => !outcome.Success);
+
+        if (failed == 0)
+        {
+            AnsiConsole.MarkupLine($"[green]{outcomes.Count} client(s) generated.[/]");
+            return 0;
+        }
+
+        AnsiConsole.MarkupLine($"[red]{failed} of {outcomes.Count} client(s) failed.[/]");
+        return 1;
     }
 
     internal static List<string> ResolveSkipPaths(string[]? cliSkipPaths, CatalystConfig? config = null)

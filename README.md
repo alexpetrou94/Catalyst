@@ -34,9 +34,15 @@ catalyst gen openapi \
   --insecure
 ```
 
+Generate **every** client configured in `catalyst.config.json` (see below) in one run:
+
+```bash
+catalyst gen openapi
+```
+
 | Option | Description |
 | --- | --- |
-| `--source <path\|url>` | Local JSON file or URL to an OpenAPI specification (required) |
+| `--source <path\|url>` | Local JSON file or URL to an OpenAPI specification. Omit it to generate every configured client |
 | `--language <language>` | Output language; `typescript` is supported |
 | `--output <path>` | Output file, or a directory (the file is named after `--class-name`) |
 | `--class-name <name>` | Generated client name; defaults to the API title |
@@ -50,6 +56,46 @@ walking up from the current directory:
 ```json
 { "gen": { "openapi": { "skipPaths": ["/api/auth/", "/internal/"] } } }
 ```
+
+### Client definitions
+
+The optional `gen.openapi.clients` list describes the clients a repository consumes. Running
+`catalyst gen openapi` without `--source` generates **every** configured client in one run, and
+tools such as the Syncfully Workbench list these projects and prefill their generator form:
+
+```json
+{
+  "gen": {
+    "openapi": {
+      "skipPaths": ["/internal/"],
+      "clients": [
+        {
+          "name": "SyncfullyCommunicationApi",
+          "source": "https://localhost:7036/openapi/v1.json",
+          "output": "src/external-apis",
+          "insecure": true
+        }
+      ]
+    }
+  }
+}
+```
+
+| Client field | Meaning                                                       |
+| ------------ | ------------------------------------------------------------- |
+| `name`       | Generated client name (`--class-name`)                        |
+| `output`     | Output folder or file, **relative to the config file's folder** |
+| `source`     | OpenAPI file path or URL; relative paths resolve against the config file's folder |
+| `insecure`   | Optional; mirror of the `--insecure` flag                      |
+| `skipPaths`  | Optional per-client skip paths; falls back to `gen.openapi.skipPaths` |
+
+Notes:
+
+* An `output` without a file extension is treated as a folder and the file is named after
+  `name`; use a `.ts` file path to control the exact file name.
+* `catalyst gen openapi` exits `0` only when every configured client was written; clients that
+  cannot be generated (for example a missing `source`) are reported and the exit code is `1`.
+* `--source` and the other single-client options stay available and unchanged for one-off runs.
 
 ## Releases
 
