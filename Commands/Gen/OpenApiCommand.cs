@@ -306,40 +306,76 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         if (document.Paths?.Count > 0)
         {
             AnsiConsole.WriteLine();
-            Tree tree = new Tree("[bold]Paths[/]")
-                .Style(new Style(Color.Blue));
 
-            foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths.OrderBy(p => p.Key))
+            if (Console.IsOutputRedirected)
             {
-                TreeNode pathNode = tree.AddNode($"[yellow]{Markup.Escape(path.Key)}[/]");
-
-                if (path.Value.Operations != null)
-                {
-                    foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.Method))
-                    {
-                        Color methodColor = operation.Key.Method.ToUpperInvariant() switch
-                        {
-                            "GET" => Color.Green,
-                            "POST" => Color.Blue,
-                            "PUT" => Color.Yellow,
-                            "DELETE" => Color.Red,
-                            "PATCH" => Color.Magenta1,
-                            _ => Color.Grey,
-                        };
-
-                        string summary = !string.IsNullOrWhiteSpace(operation.Value.Summary)
-                            ? $" - {Markup.Escape(operation.Value.Summary)}"
-                            : string.Empty;
-
-                        pathNode.AddNode($"[{methodColor}]{operation.Key.Method}[/]{summary}");
-                    }
-                }
+                RenderPathList(document);
             }
-
-            AnsiConsole.Write(tree);
+            else
+            {
+                RenderPathTree(document);
+            }
         }
 
         RenderDiagnostics(diagnostic);
+    }
+
+    /// <summary>
+    /// One line per operation for piped output: a tree costs three lines per endpoint and is
+    /// mostly indentation in a log or an output panel.
+    /// </summary>
+    private static void RenderPathList(OpenApiDocument document)
+    {
+        AnsiConsole.MarkupLine($"[bold]Paths ({document.Paths!.Count})[/]");
+
+        foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths.OrderBy(p => p.Key))
+        {
+            if (path.Value.Operations == null)
+            {
+                continue;
+            }
+
+            foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.Method))
+            {
+                string method = operation.Key.Method.ToUpperInvariant().PadRight(6);
+                AnsiConsole.MarkupLine($"  {method} {Markup.Escape(path.Key)}");
+            }
+        }
+    }
+
+    private static void RenderPathTree(OpenApiDocument document)
+    {
+        Tree tree = new Tree("[bold]Paths[/]")
+            .Style(new Style(Color.Blue));
+
+        foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths!.OrderBy(p => p.Key))
+        {
+            TreeNode pathNode = tree.AddNode($"[yellow]{Markup.Escape(path.Key)}[/]");
+
+            if (path.Value.Operations != null)
+            {
+                foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.Method))
+                {
+                    Color methodColor = operation.Key.Method.ToUpperInvariant() switch
+                    {
+                        "GET" => Color.Green,
+                        "POST" => Color.Blue,
+                        "PUT" => Color.Yellow,
+                        "DELETE" => Color.Red,
+                        "PATCH" => Color.Magenta1,
+                        _ => Color.Grey,
+                    };
+
+                    string summary = !string.IsNullOrWhiteSpace(operation.Value.Summary)
+                        ? $" - {Markup.Escape(operation.Value.Summary)}"
+                        : string.Empty;
+
+                    pathNode.AddNode($"[{methodColor}]{operation.Key.Method}[/]{summary}");
+                }
+            }
+        }
+
+        AnsiConsole.Write(tree);
     }
 
     private static void RenderDiagnostics(OpenApiDiagnostic diagnostic)
