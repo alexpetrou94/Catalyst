@@ -1,13 +1,26 @@
 using System.Reflection;
+using System.Text;
 using Catalyst.Commands.Gen;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-// Piped output (for example from the Syncfully Workbench or a script) must stay on one
-// line per message; Spectre otherwise wraps at a default 80 columns and splits paths.
-// The width stays bounded because an unbounded one makes Spectre allocate huge buffers.
+// Piped output (for example from the Syncfully Workbench, a script, or CI) must be portable:
+// - UTF-8 text so box drawing and non-ASCII content (spec titles, descriptions) survive the
+//   pipe; this must come before anything touches AnsiConsole, which captures the encoding
+//   when it creates its output writer;
+// - one line per message: Spectre otherwise wraps at a default 80 columns and splits paths
+//   (the width stays bounded because an unbounded one makes Spectre allocate huge buffers).
 if (Console.IsOutputRedirected)
 {
+    try
+    {
+        Console.OutputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+    }
+    catch (IOException)
+    {
+        // Keep the default encoding when the output handle cannot be reconfigured.
+    }
+
     AnsiConsole.Profile.Width = 4096;
 }
 
