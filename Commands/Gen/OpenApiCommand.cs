@@ -86,14 +86,14 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, settings.Insecure, cancellationToken).ConfigureAwait(false);
         if (!resolveResult.IsSuccess)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {resolveResult.ErrorMessage}");
+            AnsiConsole.MarkupLine(FormatError(resolveResult.ErrorMessage));
             return 1;
         }
 
         Result<OpenApiParseResult> parseResult = OpenApiParser.Parse(resolveResult.Value!.Content);
         if (!parseResult.IsSuccess)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {parseResult.ErrorMessage}");
+            AnsiConsole.MarkupLine(FormatError(parseResult.ErrorMessage));
             return 1;
         }
 
@@ -171,6 +171,15 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 
         AnsiConsole.MarkupLine($"[red]{failed} of {outcomes.Count} client(s) failed.[/]");
         return 1;
+    }
+
+    /// <summary>
+    /// Formats an error line as markup. The message usually carries user input (a path such as
+    /// "api[1].json"), which Spectre would otherwise parse as a style tag and throw on.
+    /// </summary>
+    internal static string FormatError(string? message)
+    {
+        return $"[red]Error:[/] {Markup.Escape(message ?? "Unknown error")}";
     }
 
     internal static List<string> ResolveSkipPaths(string[]? cliSkipPaths, CatalystConfig? config = null)
@@ -252,7 +261,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
                 AnsiConsole.MarkupLine($"[grey]Skipped {generator.SkippedPathCount} path(s) matching configured skip prefixes.[/]");
             }
 
-            foreach (string warning in generator.DuplicateWarnings)
+            foreach (string warning in generator.Warnings)
             {
                 AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
             }
@@ -261,7 +270,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
             return 0;
         }
 
-        AnsiConsole.MarkupLine($"[red]Error:[/] Unsupported language: {settings.Language}");
+        AnsiConsole.MarkupLine(FormatError($"Unsupported language: {settings.Language}"));
         return 1;
     }
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi;
@@ -16,9 +17,19 @@ namespace Catalyst.Common.Services;
 
 internal sealed class TypeScriptGenerator
 {
+    private static readonly string[] HttpVerbInterfaceNames = ["Get", "Put", "Post", "Delete", "Options", "Head", "Patch", "Trace"];
+
+    /// <summary>
+    /// Binding names a generated method parameter must not take: the fixed parameters of the
+    /// method, the inner request function the body calls, and the helper used for path segments.
+    /// </summary>
+    private static readonly string[] ReservedBindings = ["body", "headers", "signal", "request", "encodeURIComponent"];
+
     private readonly OpenApiDocument _document;
     private readonly string _className;
-    private readonly HashSet<string> _generatedTypeNames;
+    private readonly string _clientInterfaceName;
+    private readonly HashSet<string> _usedTypeNames;
+    private readonly Dictionary<string, string> _componentNames;
     private readonly List<string> _skipPathPrefixes;
     private readonly DateTimeOffset _generatedAt;
     private readonly string _generatorVersion;
@@ -32,13 +43,20 @@ internal sealed class TypeScriptGenerator
     {
         _document = document;
         _className = className ?? document.Info?.Title ?? "ApiClient";
-        _generatedTypeNames = [];
+        _clientInterfaceName = TypeScriptNaming.SanitizeIdentifier(TypeScriptNaming.ToPascalCase(_className)) + "Client";
         _skipPathPrefixes = skipPaths ?? [];
         _generatedAt = generatedAt ?? DateTimeOffset.UtcNow;
         _generatorVersion = string.IsNullOrWhiteSpace(generatorVersion) ? ResolveGeneratorVersion() : generatorVersion;
+
+        // One name map serves both the declarations and every $ref site, so they cannot drift apart.
+        _componentNames = TypeScriptNaming.BuildComponentNames(
+            document.Components?.Schemas?.Keys ?? Enumerable.Empty<string>(),
+            [_clientInterfaceName]);
+        _usedTypeNames = [.. _componentNames.Values, _clientInterfaceName];
     }
 
-    public List<string> DuplicateWarnings { get; } = [];
+    /// <summary>Non-fatal problems found while generating (name collisions, path parameter mismatches).</summary>
+    public List<string> Warnings { get; } = [];
 
     public string Generate()
     {
@@ -61,6 +79,15 @@ internal sealed class TypeScriptGenerator
     }
 
     public int SkippedPathCount { get; private set; }
+
+    /// <summary>
+    /// Maps a schema to the TypeScript type used inline (parameters, tests), without declaring any
+    /// named types. Object schemas become literal types.
+    /// </summary>
+    internal string ResolveInlineType(IOpenApiSchema schema)
+    {
+        return ResolveType(null, "Inline", schema);
+    }
 
     private void BuildHeader(FileScope<TypeScript> file)
     {
@@ -142,7 +169,7 @@ internal sealed class TypeScriptGenerator
     {
         file.Interface("RequestOptions")
             .Export()
-            .Property("params", "Record<string, string | string[] | number | boolean | undefined>")
+            .Property("params", "Record<string, string | number | boolean | (string | number | boolean)[] | undefined>")
                 .Nullable()
                 .EndProperty()
             .Property("body", "unknown")
@@ -167,28 +194,59 @@ internal sealed class TypeScriptGenerator
 
         foreach (KeyValuePair<string, IOpenApiSchema> schemaEntry in schemas)
         {
-            BuildInterfaceFromSchema(file, schemaEntry.Key, schemaEntry.Value);
+            BuildComponent(file, _componentNames[schemaEntry.Key], schemaEntry.Value);
         }
     }
 
-    private void BuildInterfaceFromSchema(FileScope<TypeScript> file, string name, IOpenApiSchema schema)
+    /// <summary>
+    /// Declares one component schema: an interface for plain objects, an enum for string enums and
+    /// a type alias for everything else (primitives, arrays, compositions, numeric enums).
+    /// </summary>
+    private void BuildComponent(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema)
     {
-        if (!_generatedTypeNames.Add(name))
-        {
-            return;
-        }
-
         if (schema.Enum?.Count > 0)
         {
-            BuildEnumFromSchema(file, name, schema);
+            if (IsStringEnum(schema))
+            {
+                BuildEnumFromSchema(file, typeName, schema);
+            }
+            else
+            {
+                BuildTypeAlias(file, typeName, schema, MapEnum(schema));
+            }
+
             return;
         }
 
-        InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder = file.Interface(name).Export();
+        bool isComposed = schema.AllOf?.Count > 0 || schema.OneOf?.Count > 0 || schema.AnyOf?.Count > 0;
+        if (!isComposed && schema.Properties?.Count > 0)
+        {
+            BuildInterfaceFromSchema(file, typeName, schema);
+            return;
+        }
+
+        BuildTypeAlias(file, typeName, schema, ResolveType(file, typeName, schema));
+    }
+
+    private static void BuildTypeAlias(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema, string type)
+    {
+        TypeAliasScope<TypeScript, FileScope<TypeScript>> alias = file.TypeAlias(typeName, type).Export();
 
         if (!string.IsNullOrWhiteSpace(schema.Description))
         {
-            interfaceBuilder.Doc(schema.Description.Trim());
+            alias.Doc(DocText(schema.Description));
+        }
+
+        alias.EndTypeAlias();
+    }
+
+    private void BuildInterfaceFromSchema(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema)
+    {
+        InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder = file.Interface(typeName).Export();
+
+        if (!string.IsNullOrWhiteSpace(schema.Description))
+        {
+            interfaceBuilder.Doc(DocText(schema.Description));
         }
 
         if (schema.Properties != null)
@@ -196,21 +254,21 @@ internal sealed class TypeScriptGenerator
             foreach (KeyValuePair<string, IOpenApiSchema> property in schema.Properties)
             {
                 bool isRequired = schema.Required?.Contains(property.Key) ?? false;
-                BuildInterfaceProperty(file, interfaceBuilder, name, property.Key, property.Value, isRequired);
+                BuildInterfaceProperty(file, interfaceBuilder, typeName, property.Key, property.Value, isRequired);
             }
         }
 
         interfaceBuilder.EndInterface();
     }
 
-    private static void BuildEnumFromSchema(FileScope<TypeScript> file, string name, IOpenApiSchema schema)
+    private static void BuildEnumFromSchema(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema)
     {
         if (schema.Enum is not { Count: > 0 })
         {
             return;
         }
 
-        EnumScope<TypeScript, FileScope<TypeScript>> enumBuilder = file.Enum(SanitizeIdentifier(name)).Export();
+        EnumScope<TypeScript, FileScope<TypeScript>> enumBuilder = file.Enum(typeName).Export();
 
         HashSet<string> usedMembers = [];
 
@@ -226,7 +284,7 @@ internal sealed class TypeScriptGenerator
                 continue;
             }
 
-            string memberName = SanitizeIdentifier(value, asParameter: true);
+            string memberName = TypeScriptNaming.SanitizeIdentifier(value, asParameter: true);
             string uniqueName = memberName;
             int suffix = 1;
             while (!usedMembers.Add(uniqueName))
@@ -234,18 +292,40 @@ internal sealed class TypeScriptGenerator
                 uniqueName = $"{memberName}_{suffix++}";
             }
 
-            string escaped = value.Replace("\\", "\\\\").Replace("\"", "\\\"");
-            enumBuilder.Member(uniqueName, $"\"{escaped}\"");
+            enumBuilder.Member(uniqueName, TypeScriptNaming.StringLiteral(value));
         }
 
         enumBuilder.EndEnum();
     }
 
+    /// <summary>A string enum has at least one member and every non-null member is a string.</summary>
+    private static bool IsStringEnum(IOpenApiSchema schema)
+    {
+        bool hasString = false;
+
+        foreach (JsonNode? member in schema.Enum ?? [])
+        {
+            if (member is null || member.GetValueKind() == JsonValueKind.Null)
+            {
+                continue;
+            }
+
+            if (member.GetValueKind() != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            hasString = true;
+        }
+
+        return hasString;
+    }
+
     private void BuildInterfaceProperty(FileScope<TypeScript> file, InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder, string parentName, string name, IOpenApiSchema schema, bool isRequired)
     {
-        string propertyType = ResolveType(file, parentName + ToPascalCase(name), schema);
+        string propertyType = ResolveType(file, parentName + TypeScriptNaming.ToPascalCase(name), schema);
 
-        PropertyScope<TypeScript, InterfaceScope<TypeScript, FileScope<TypeScript>>> propertyBuilder = interfaceBuilder.Property(name, propertyType);
+        PropertyScope<TypeScript, InterfaceScope<TypeScript, FileScope<TypeScript>>> propertyBuilder = interfaceBuilder.Property(TypeScriptNaming.QuoteKey(name), propertyType);
 
         if (!isRequired)
         {
@@ -271,77 +351,370 @@ internal sealed class TypeScriptGenerator
         }
     }
 
-    private string ResolveType(FileScope<TypeScript> file, string suggestedName, IOpenApiSchema schema)
+    /// <summary>
+    /// The single schema-to-TypeScript resolver. With a file scope, inline object schemas are declared
+    /// as named interfaces; without one (parameters, allOf members, additionalProperties values) they
+    /// become literal types and nothing is declared.
+    /// </summary>
+    private string ResolveType(FileScope<TypeScript>? file, string suggestedName, IOpenApiSchema schema)
     {
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            return schemaRef.Reference.Id ?? "any";
+            return ResolveReference(schemaRef);
         }
 
         JsonSchemaType? type = schema.Type;
-        JsonSchemaType effectiveType = (type ?? 0) & ~JsonSchemaType.Null;
-        bool isNullable = type?.HasFlag(JsonSchemaType.Null) == true;
+        JsonSchemaType kinds = (type ?? 0) & ~JsonSchemaType.Null;
+        bool isNullable = type?.HasFlag(JsonSchemaType.Null) == true
+            || schema.Extensions?.ContainsKey(OpenApiParser.NullableExtension) == true;
 
-        if (schema.Items != null || effectiveType.HasFlag(JsonSchemaType.Array))
+        List<string> parts = [];
+
+        if (schema.Enum?.Count > 0)
         {
-            string itemType = schema.Items != null
-                ? ResolveType(file, suggestedName + "Item", schema.Items)
-                : "any";
-            return isNullable ? itemType + "[] | null" : itemType + "[]";
+            parts.Add(MapEnum(schema));
+        }
+        else if (schema.AllOf?.Count > 0)
+        {
+            parts.Add(ResolveAllOf(suggestedName, schema, ref isNullable));
+        }
+        else if (schema.OneOf?.Count > 0 || schema.AnyOf?.Count > 0)
+        {
+            parts.Add(ResolveUnion(file, suggestedName, schema, ref isNullable));
+        }
+        else
+        {
+            if (schema.Items != null || kinds.HasFlag(JsonSchemaType.Array))
+            {
+                string itemType = schema.Items != null
+                    ? ResolveType(file, suggestedName + "Item", schema.Items)
+                    : "any";
+                parts.Add(ParenthesizeForSuffix(itemType) + "[]");
+            }
+
+            if (schema.Properties?.Count > 0 || schema.AdditionalProperties != null || kinds.HasFlag(JsonSchemaType.Object))
+            {
+                parts.Add(ResolveObject(file, suggestedName, schema));
+            }
+
+            parts.AddRange(MapPrimitiveTypes(kinds));
+        }
+
+        return Compose(parts, isNullable);
+    }
+
+    private string ResolveReference(OpenApiSchemaReference schemaRef)
+    {
+        string? id = schemaRef.Reference.Id;
+        return id != null && _componentNames.TryGetValue(id, out string? name) ? name : "any";
+    }
+
+    private string ResolveObject(FileScope<TypeScript>? file, string suggestedName, IOpenApiSchema schema)
+    {
+        if (schema.Properties?.Count > 0)
+        {
+            if (file == null)
+            {
+                return BuildObjectLiteral(schema);
+            }
+
+            string typeName = AllocateTypeName(suggestedName);
+            BuildInterfaceFromSchema(file, typeName, schema);
+            return typeName;
+        }
+
+        if (schema.AdditionalProperties != null)
+        {
+            return $"Record<string, {ResolveType(null, suggestedName, schema.AdditionalProperties)}>";
+        }
+
+        return "Record<string, unknown>";
+    }
+
+    private string BuildObjectLiteral(IOpenApiSchema schema)
+    {
+        List<string> properties = [];
+
+        foreach (KeyValuePair<string, IOpenApiSchema> property in schema.Properties!)
+        {
+            bool isRequired = schema.Required?.Contains(property.Key) ?? false;
+            string optional = isRequired ? "" : "?";
+            string propertyType = ResolveType(null, "Inline", property.Value);
+            properties.Add($"{TypeScriptNaming.QuoteKey(property.Key)}{optional}: {propertyType}");
+        }
+
+        return "{ " + string.Join("; ", properties) + " }";
+    }
+
+    /// <summary>allOf becomes an intersection; own properties next to allOf join it as a literal type.</summary>
+    private string ResolveAllOf(string suggestedName, IOpenApiSchema schema, ref bool isNullable)
+    {
+        List<string> members = [];
+
+        foreach (IOpenApiSchema member in schema.AllOf!)
+        {
+            if (IsNullOnlySchema(member))
+            {
+                isNullable = true;
+                continue;
+            }
+
+            string memberType = SplitNull(ResolveType(null, suggestedName, member), out bool memberNullable);
+            isNullable |= memberNullable;
+            members.Add(ParenthesizeForIntersection(memberType));
         }
 
         if (schema.Properties?.Count > 0)
         {
-            string pascalName = ToPascalCase(suggestedName);
-            BuildInterfaceFromSchema(file, pascalName, schema);
-            return isNullable ? pascalName + " | null" : pascalName;
+            members.Add(BuildObjectLiteral(schema));
         }
 
-        if (schema.OneOf?.Count > 0)
-        {
-            return ResolveOneOf(file, suggestedName, schema);
-        }
-
-        return OpenApiTypeMapper.MapSchema(schema);
+        List<string> distinct = members.Distinct().ToList();
+        return distinct.Count == 0 ? "any" : string.Join(" & ", distinct);
     }
 
-    private string ResolveOneOf(FileScope<TypeScript> file, string suggestedName, IOpenApiSchema schema)
+    /// <summary>oneOf and anyOf both become a union; null-only branches turn into a trailing "| null".</summary>
+    private string ResolveUnion(FileScope<TypeScript>? file, string suggestedName, IOpenApiSchema schema, ref bool isNullable)
     {
-        if (schema.OneOf is not { Count: > 0 })
+        IList<IOpenApiSchema> branches = schema.OneOf?.Count > 0 ? schema.OneOf : schema.AnyOf!;
+        List<string> members = [];
+
+        foreach (IOpenApiSchema branch in branches)
         {
-            return "any";
+            if (IsNullOnlySchema(branch))
+            {
+                isNullable = true;
+                continue;
+            }
+
+            string branchType = SplitNull(ResolveType(file, suggestedName + "Union", branch), out bool branchNullable);
+            isNullable |= branchNullable;
+            members.Add(branchType);
         }
 
-        List<string> branches = [];
-
-        foreach (IOpenApiSchema branch in schema.OneOf)
-        {
-            bool isNullOnly = IsNullOnlySchema(branch);
-
-            branches.Add(isNullOnly ? "null" : ResolveType(file, suggestedName + "Union", branch));
-        }
-
-        return string.Join(" | ", branches.Distinct().OrderBy(b => b == "null"));
+        List<string> distinct = members.Distinct().ToList();
+        return distinct.Count == 0 ? "any" : string.Join(" | ", distinct);
     }
 
     private static bool IsNullOnlySchema(IOpenApiSchema schema)
     {
         JsonSchemaType? type = schema.Type;
-        return type?.HasFlag(JsonSchemaType.Null) == true
-            && (type.Value & ~JsonSchemaType.Null) == 0;
+        return schema is not OpenApiSchemaReference
+            && type?.HasFlag(JsonSchemaType.Null) == true
+            && (type.Value & ~JsonSchemaType.Null) == 0
+            && schema.AllOf is not { Count: > 0 }
+            && schema.OneOf is not { Count: > 0 }
+            && schema.AnyOf is not { Count: > 0 };
+    }
+
+    private static List<string> MapPrimitiveTypes(JsonSchemaType kinds)
+    {
+        List<string> result = [];
+
+        if (kinds.HasFlag(JsonSchemaType.String))
+        {
+            result.Add("string");
+        }
+
+        if (kinds.HasFlag(JsonSchemaType.Integer) || kinds.HasFlag(JsonSchemaType.Number))
+        {
+            result.Add("number");
+        }
+
+        if (kinds.HasFlag(JsonSchemaType.Boolean))
+        {
+            result.Add("boolean");
+        }
+
+        return result;
+    }
+
+    /// <summary>Literal union of an enum's members; strings are escaped, numbers and booleans are written as-is.</summary>
+    private static string MapEnum(IOpenApiSchema schema)
+    {
+        List<string> values = [];
+
+        foreach (JsonNode? item in schema.Enum ?? [])
+        {
+            if (item is null)
+            {
+                values.Add("null");
+                continue;
+            }
+
+            switch (item.GetValueKind())
+            {
+                case JsonValueKind.String:
+                    values.Add(TypeScriptNaming.StringLiteral(item.GetValue<string>()));
+                    break;
+                case JsonValueKind.Number:
+                    values.Add(item.ToJsonString());
+                    break;
+                case JsonValueKind.True:
+                    values.Add("true");
+                    break;
+                case JsonValueKind.False:
+                    values.Add("false");
+                    break;
+                case JsonValueKind.Null:
+                    values.Add("null");
+                    break;
+                default:
+                    values.Add("any");
+                    break;
+            }
+        }
+
+        return values.Count == 0 ? "any" : string.Join(" | ", values.Distinct());
+    }
+
+    /// <summary>Joins union parts and appends "| null"; "any" absorbs everything else.</summary>
+    private static string Compose(List<string> parts, bool isNullable)
+    {
+        List<string> members = [];
+
+        foreach (string part in parts)
+        {
+            string stripped = SplitNull(part, out bool partNullable);
+            isNullable |= partNullable;
+            if (stripped.Length > 0)
+            {
+                members.Add(stripped);
+            }
+        }
+
+        members = members.Distinct().ToList();
+
+        if (members.Contains("any"))
+        {
+            return "any";
+        }
+
+        if (members.Count == 0)
+        {
+            return isNullable ? "null" : "any";
+        }
+
+        string union = string.Join(" | ", members);
+        return isNullable ? union + " | null" : union;
+    }
+
+    /// <summary>Removes a trailing "null" member from a type and reports whether there was one.</summary>
+    private static string SplitNull(string type, out bool hadNull)
+    {
+        if (type == "null")
+        {
+            hadNull = true;
+            return string.Empty;
+        }
+
+        if (type.EndsWith(" | null", StringComparison.Ordinal))
+        {
+            hadNull = true;
+            return type[..^" | null".Length];
+        }
+
+        hadNull = false;
+        return type;
+    }
+
+    /// <summary>Wraps unions and intersections in parentheses so a suffix like "[]" applies to the whole type.</summary>
+    private static string ParenthesizeForSuffix(string type)
+    {
+        return HasTopLevel(type, '|') || HasTopLevel(type, '&') ? "(" + type + ")" : type;
+    }
+
+    private static string ParenthesizeForIntersection(string type)
+    {
+        return HasTopLevel(type, '|') ? "(" + type + ")" : type;
+    }
+
+    /// <summary>Looks for an operator outside of brackets, generics and string literals.</summary>
+    private static bool HasTopLevel(string type, char op)
+    {
+        int depth = 0;
+        char quote = '\0';
+
+        for (int i = 0; i < type.Length; i++)
+        {
+            char c = type[i];
+
+            if (quote != '\0')
+            {
+                if (c == '\\')
+                {
+                    i++;
+                }
+                else if (c == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+
+            switch (c)
+            {
+                case '"':
+                case '\'':
+                    quote = c;
+                    break;
+                case '{':
+                case '(':
+                case '<':
+                case '[':
+                    depth++;
+                    break;
+                case '}':
+                case ')':
+                case '>':
+                case ']':
+                    depth--;
+                    break;
+                default:
+                    if (c == op && depth == 0)
+                    {
+                        return true;
+                    }
+
+                    break;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Picks a unique type name for an inline schema; names taken by components or earlier inline types get a numeric suffix.</summary>
+    private string AllocateTypeName(string suggestedName)
+    {
+        string candidate = TypeScriptNaming.ToTypeIdentifier(TypeScriptNaming.ToPascalCase(suggestedName));
+        string unique = candidate;
+        int suffix = 2;
+
+        while (TypeScriptNaming.IsReservedTypeName(unique) || !_usedTypeNames.Add(unique))
+        {
+            unique = $"{candidate}_{suffix++}";
+        }
+
+        return unique;
+    }
+
+    /// <summary>Descriptions go into /** */ comments, so a closing marker inside the text must not end the comment early.</summary>
+    private static string DocText(string text)
+    {
+        return text.Trim().Replace("*/", "*\\/");
     }
 
     private void BuildApiClientInterface(FileScope<TypeScript> file, List<OperationInfo> operations)
     {
-        string interfaceName = SanitizeIdentifier(ToPascalCase(_className)) + "Client";
-        InterfaceScope<TypeScript, FileScope<TypeScript>> clientInterface = file.Interface(interfaceName).Export();
+        InterfaceScope<TypeScript, FileScope<TypeScript>> clientInterface = file.Interface(_clientInterfaceName).Export();
 
         IEnumerable<IGrouping<string, OperationInfo>> groups = operations.GroupBy(o => o.HttpMethod);
 
         foreach (IGrouping<string, OperationInfo> group in groups)
         {
             // Property on the main client: get: Get;
-            string verbInterfaceName = SanitizeIdentifier(ToPascalCase(group.Key));
+            string verbInterfaceName = TypeScriptNaming.SanitizeIdentifier(TypeScriptNaming.ToPascalCase(group.Key));
             clientInterface.Property(group.Key, verbInterfaceName).EndProperty();
 
             // Named interface for this HTTP verb: export interface Get { ... }
@@ -349,30 +722,16 @@ internal sealed class TypeScriptGenerator
 
             foreach (OperationInfo operation in group)
             {
-                string methodName = StripHttpVerbPrefix(operation.Name, operation.HttpMethod);
-                MethodScope<TypeScript, InterfaceScope<TypeScript, FileScope<TypeScript>>> method = verbInterface.Method(methodName);
+                MethodScope<TypeScript, InterfaceScope<TypeScript, FileScope<TypeScript>>> method = verbInterface.Method(operation.MethodName);
 
-                foreach (ParameterInfo param in operation.PathParams)
+                foreach (SignatureParameter param in BuildSignature(operation))
                 {
                     method.Parameter(param.Name, param.Type);
-                }
-
-                foreach (ParameterInfo param in operation.QueryParams)
-                {
-                    method.Parameter(param.Name, param.Type);
-                    if (!param.Required)
+                    if (param.Optional)
                     {
                         method.Nullable();
                     }
                 }
-
-                if (operation.RequestBodyType != null)
-                {
-                    method.Parameter("body", operation.RequestBodyType);
-                }
-
-                method.Parameter("headers", "Record<string, string>").Nullable();
-                method.Parameter("signal", "AbortSignal").Nullable();
 
                 method.Returns("Promise<ApiResult<" + operation.ReturnType + ">>").EndMethod();
             }
@@ -383,21 +742,55 @@ internal sealed class TypeScriptGenerator
         clientInterface.EndInterface();
     }
 
+    /// <summary>
+    /// Parameter order of a generated method: path parameters, required query parameters, the body,
+    /// optional query parameters, then the optional headers and signal. Required parameters never
+    /// follow an optional one, which TypeScript would reject.
+    /// </summary>
+    private static List<SignatureParameter> BuildSignature(OperationInfo operation)
+    {
+        List<SignatureParameter> result = [];
+
+        foreach (ParameterInfo param in operation.PathParams)
+        {
+            result.Add(new SignatureParameter(param.Name, param.Type, Optional: false));
+        }
+
+        foreach (ParameterInfo param in operation.QueryParams.Where(p => p.Required))
+        {
+            result.Add(new SignatureParameter(param.Name, param.Type, Optional: false));
+        }
+
+        if (operation.RequestBodyType != null)
+        {
+            result.Add(new SignatureParameter("body", operation.RequestBodyType, Optional: false));
+        }
+
+        foreach (ParameterInfo param in operation.QueryParams.Where(p => !p.Required))
+        {
+            result.Add(new SignatureParameter(param.Name, param.Type, Optional: true));
+        }
+
+        result.Add(new SignatureParameter("headers", "Record<string, string>", Optional: true));
+        result.Add(new SignatureParameter("signal", "AbortSignal", Optional: true));
+
+        return result;
+    }
+
     private void BuildFactoryFunction(FileScope<TypeScript> file, List<OperationInfo> operations)
     {
-        string interfaceName = SanitizeIdentifier(ToPascalCase(_className)) + "Client";
         string defaultBaseUrl = GetDefaultBaseUrl();
         bool hasDefaultUrl = !string.IsNullOrWhiteSpace(defaultBaseUrl);
 
         file.Function("createClient")
             .Export()
             .Parameter("options", "ClientOptions", "{}")
-            .Returns(interfaceName)
+            .Returns(_clientInterfaceName)
             .Body(b =>
             {
                 if (hasDefaultUrl)
                 {
-                    b.Const("baseUrl", (CodeType?)null, $"options.baseUrl || '{defaultBaseUrl}'");
+                    b.Const("baseUrl", (CodeType?)null, $"options.baseUrl || {TypeScriptNaming.SingleQuotedLiteral(defaultBaseUrl)}");
                 }
                 else
                 {
@@ -418,17 +811,21 @@ internal sealed class TypeScriptGenerator
                     .Returns("Promise<ApiResult<T>>")
                     .Body(req =>
                     {
-                        req.Const("base", (CodeType?)null, "baseUrl.replace(/\\/$/, \"\")");
-                        req.Const("url", (CodeType?)null, "new URL(path, base || undefined)");
+                        // The URL is built as a string: new URL(path, base) would drop the path of the base URL.
+                        req.Var("url", (CodeType?)null, "baseUrl.replace(/\\/+$/, \"\") + path");
                         req.If("init?.params", p =>
                         {
+                            p.Const("search", (CodeType?)null, "new URLSearchParams()");
                             p.Const("entries", (CodeType?)null, "Object.entries(init.params).filter(([, v]) => v !== undefined)");
                             p.ForEach("[key, value]", "entries", e =>
                             {
                                 e.If("Array.isArray(value)", arr =>
-                                    arr.ForEach("v", "value", v => v.Line("url.searchParams.append(key, v);")))
-                                 .Else(other => other.Line("url.searchParams.append(key, String(value));"));
+                                    arr.ForEach("v", "value", v => v.Line("search.append(key, String(v));")))
+                                 .Else(other => other.Line("search.append(key, String(value));"));
                             });
+                            p.Const("query", (CodeType?)null, "search.toString()");
+                            p.If("query", q =>
+                                q.Line("url += (url.includes(\"?\") ? \"&\" : \"?\") + query;"));
                         });
                         req.BlankLine();
                         req.Const("requestHeaders", "Record<string, string>", "{ ...headers, ...(init?.headers ?? {}) }");
@@ -437,7 +834,7 @@ internal sealed class TypeScriptGenerator
                         {
                             body.If("typeof init.body === \"object\" && init.body !== null && !(init.body instanceof FormData) && !(init.body instanceof Blob) && !(init.body instanceof ArrayBuffer)", obj =>
                             {
-                                obj.If("!(\"Content-Type\" in requestHeaders)", ct =>
+                                obj.If("!Object.keys(requestHeaders).some((name) => name.toLowerCase() === \"content-type\")", ct =>
                                     ct.Line("requestHeaders[\"Content-Type\"] = \"application/json\";"));
                                 obj.Line("body = JSON.stringify(init.body);");
                             }).Else(raw => raw.Line("body = init.body as BodyInit;"));
@@ -448,7 +845,7 @@ internal sealed class TypeScriptGenerator
                         req.If("timeoutSignal", t =>
                             t.Line("signal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;"));
                         req.BlankLine();
-                        req.Line("const response = await fetch(url.href, {");
+                        req.Line("const response = await fetch(url, {");
                         req.Line("    method,");
                         req.Line("    credentials,");
                         req.Line("    headers: requestHeaders,");
@@ -483,7 +880,18 @@ internal sealed class TypeScriptGenerator
                         });
                         req.BlankLine();
                         req.Const("text", (CodeType?)null, "await response.text()");
-                        req.Return("{ data: (text ? JSON.parse(text) : undefined) as T, error: null }");
+                        req.If("!text", empty =>
+                            empty.Return("{ data: undefined as T, error: null }"));
+                        // Only JSON is parsed. A response without a content-type is parsed when it happens to be JSON.
+                        req.Const("contentType", (CodeType?)null, "(response.headers.get(\"content-type\") ?? \"\").toLowerCase()");
+                        req.If("contentType.includes(\"json\")", json =>
+                            json.Return("{ data: JSON.parse(text) as T, error: null }"));
+                        req.If("!contentType", none =>
+                            none.Try(t =>
+                                t.Return("{ data: JSON.parse(text) as T, error: null }"))
+                            .Catch(null, c =>
+                                c.Line("// Not JSON: fall through and return the text.")));
+                        req.Return("{ data: text as T, error: null }");
                     }));
                 b.BlankLine();
 
@@ -497,40 +905,26 @@ internal sealed class TypeScriptGenerator
                         {
                             foreach (OperationInfo operation in group.ToArray())
                             {
-                                string methodName = StripHttpVerbPrefix(operation.Name, operation.HttpMethod);
-
-                                g.Member(methodName, m =>
+                                g.Member(operation.MethodName, m =>
                                 {
                                     if (!string.IsNullOrWhiteSpace(operation.Summary))
                                     {
-                                        m.Doc(operation.Summary);
+                                        m.Doc(DocText(operation.Summary));
                                     }
 
                                     m.Async();
 
-                                    foreach (ParameterInfo param in operation.PathParams)
+                                    foreach (SignatureParameter param in BuildSignature(operation))
                                     {
                                         m.Parameter(param.Name, param.Type);
-                                    }
-
-                                    foreach (ParameterInfo param in operation.QueryParams)
-                                    {
-                                        m.Parameter(param.Name, param.Type);
-                                        if (!param.Required)
+                                        if (param.Optional)
                                         {
                                             m.Nullable();
                                         }
                                     }
 
-                                    if (operation.RequestBodyType != null)
-                                    {
-                                        m.Parameter("body", operation.RequestBodyType);
-                                    }
-
-                                    m.Parameter("headers", "Record<string, string>").Nullable();
-                                    m.Parameter("signal", "AbortSignal").Nullable();
                                     m.Returns($"Promise<ApiResult<{operation.ReturnType}>>");
-                                    m.Body(fn => fn.Return($"request<{operation.ReturnType}>({BuildUrl(operation.Path, operation.PathParams)}, '{operation.HttpMethod}'{BuildInitArgument(operation.QueryParams, operation.RequestBodyType != null)})"));
+                                    m.Body(fn => fn.Return($"request<{operation.ReturnType}>({BuildUrl(operation)}, '{operation.HttpMethod}'{BuildInitArgument(operation.QueryParams, operation.RequestBodyType != null)})"));
                                 });
                             }
                         });
@@ -581,21 +975,54 @@ internal sealed class TypeScriptGenerator
                     usedNamesByMethod[httpMethod] = [];
                 }
 
-                OperationInfo info = ExtractOperationInfo(path, opEntry.Key, opEntry.Value, usedNamesByMethod[httpMethod]);
+                OperationInfo info = ExtractOperationInfo(path, pathEntry.Value, opEntry.Key, opEntry.Value, usedNamesByMethod[httpMethod]);
                 operations.Add(info);
             }
         }
 
+        AssignMethodNames(operations);
+
         return operations;
     }
 
-    private OperationInfo ExtractOperationInfo(string path, HttpMethod method, OpenApiOperation operation, Dictionary<string, (string Path, string Method)> usedNames)
+    /// <summary>
+    /// Gives every operation the method name used on its verb interface. Two operations can end up with the
+    /// same short name once the verb is stripped; the later one keeps its full name instead.
+    /// </summary>
+    private void AssignMethodNames(List<OperationInfo> operations)
+    {
+        foreach (IGrouping<string, OperationInfo> group in operations.GroupBy(o => o.HttpMethod))
+        {
+            HashSet<string> usedMethodNames = [];
+
+            foreach (OperationInfo operation in group)
+            {
+                string methodName = TypeScriptNaming.StripHttpVerbPrefix(operation.Name, operation.HttpMethod, operation.NameFromPath);
+
+                if (!usedMethodNames.Add(methodName))
+                {
+                    string fullName = operation.Name;
+                    int counter = 2;
+                    while (!usedMethodNames.Add(fullName))
+                    {
+                        fullName = operation.Name + counter++;
+                    }
+
+                    Warnings.Add($"Method name \"{methodName}\" is used twice for {operation.HttpMethod} operations. {operation.HttpMethod} {operation.Path} is named \"{fullName}\" instead.");
+                    methodName = fullName;
+                }
+
+                operation.MethodName = methodName;
+            }
+        }
+    }
+
+    private OperationInfo ExtractOperationInfo(string path, IOpenApiPathItem pathItem, HttpMethod method, OpenApiOperation operation, Dictionary<string, (string Path, string Method)> usedNames)
     {
         string operationName = GetOperationName(path, method, operation, usedNames);
         string httpMethod = method.Method.ToLowerInvariant();
 
-        List<ParameterInfo> pathParams = ExtractParameters(operation, ParameterLocation.Path);
-        List<ParameterInfo> queryParams = ExtractParameters(operation, ParameterLocation.Query);
+        (List<ParameterInfo> pathParams, List<ParameterInfo> queryParams) = ExtractParameters(path, httpMethod, pathItem, operation);
 
         IOpenApiSchema? requestBodySchema = GetRequestBodySchema(operation);
         IOpenApiSchema? responseSchema = GetResponseSchema(operation);
@@ -603,6 +1030,7 @@ internal sealed class TypeScriptGenerator
         return new OperationInfo
         {
             Name = operationName,
+            NameFromPath = string.IsNullOrWhiteSpace(operation.OperationId),
             Path = path,
             HttpMethod = httpMethod,
             Summary = operation.Summary ?? string.Empty,
@@ -614,55 +1042,124 @@ internal sealed class TypeScriptGenerator
         };
     }
 
-    private static List<ParameterInfo> ExtractParameters(OpenApiOperation operation, ParameterLocation location)
+    /// <summary>
+    /// Collects the path and query parameters of an operation. Path-level parameters are merged in (the
+    /// operation wins on the same name and location). Every {variable} of the path template becomes a
+    /// path parameter, in template order, even when the spec does not declare it.
+    /// </summary>
+    private (List<ParameterInfo> PathParams, List<ParameterInfo> QueryParams) ExtractParameters(string path, string httpMethod, IOpenApiPathItem pathItem, OpenApiOperation operation)
     {
-        List<ParameterInfo> result = [];
+        List<IOpenApiParameter> merged = [];
 
-        if (operation.Parameters == null)
+        foreach (IOpenApiParameter param in (pathItem.Parameters ?? []).Concat(operation.Parameters ?? []))
         {
-            return result;
+            int existing = merged.FindIndex(m => m.In == param.In && m.Name == param.Name);
+            if (existing >= 0)
+            {
+                merged[existing] = param;
+            }
+            else
+            {
+                merged.Add(param);
+            }
         }
 
-        foreach (IOpenApiParameter param in operation.Parameters)
+        List<IOpenApiParameter> declaredPath = merged.Where(p => p.In == ParameterLocation.Path).ToList();
+        List<string> templateVariables = Regex.Matches(path, @"\{([^{}]+)\}")
+            .Select(m => m.Groups[1].Value)
+            .Distinct()
+            .ToList();
+
+        HashSet<string> usedBindings = new(ReservedBindings);
+        List<ParameterInfo> pathParams = [];
+
+        foreach (string variable in templateVariables)
         {
-            if (param.In != location)
+            IOpenApiParameter? declared = declaredPath.FirstOrDefault(p => p.Name == variable);
+            if (declared == null)
             {
-                continue;
+                Warnings.Add($"Path parameter \"{variable}\" of {httpMethod} {path} is used in the URL but not declared. Assuming a required string.");
             }
 
-            string rawName = param.Name ?? "param";
-            // Only normalize separator-delimited names (e.g. "user-id" -> "userId").
-            // Already-camelCase names like "userId" must be left untouched, since the
-            // library's ToCamelCase would otherwise lowercase the inner capital.
-            string camelName = rawName.Any(ch => ch is '-' or '_' or ' ')
-                ? rawName.ToCamelCase()
-                : rawName;
-            string paramName = SanitizeIdentifier(camelName, asParameter: true);
-            string paramType = param.Schema != null
-                ? OpenApiTypeMapper.MapSchema(param.Schema)
-                : "string";
-
-            result.Add(new ParameterInfo
-            {
-                OriginalName = param.Name ?? paramName,
-                Name = paramName,
-                Type = paramType,
-                Required = param.Required,
-            });
+            pathParams.Add(CreateParameterInfo(variable, declared?.Schema, required: true, "path", usedBindings));
         }
 
-        return result;
+        foreach (IOpenApiParameter declared in declaredPath)
+        {
+            if (!templateVariables.Contains(declared.Name ?? string.Empty))
+            {
+                Warnings.Add($"Path parameter \"{declared.Name}\" of {httpMethod} {path} does not appear in the URL and was ignored.");
+            }
+        }
+
+        List<ParameterInfo> queryParams = [];
+
+        foreach (IOpenApiParameter param in merged.Where(p => p.In == ParameterLocation.Query))
+        {
+            queryParams.Add(CreateParameterInfo(param.Name ?? "param", param.Schema, param.Required, "query", usedBindings));
+        }
+
+        return (pathParams, queryParams);
+    }
+
+    private ParameterInfo CreateParameterInfo(string rawName, IOpenApiSchema? schema, bool required, string location, HashSet<string> usedBindings)
+    {
+        // Only normalize separator-delimited names (e.g. "user-id" -> "userId").
+        // Already-camelCase names like "userId" must be left untouched, since the
+        // library's ToCamelCase would otherwise lowercase the inner capital.
+        string camelName = rawName.Any(ch => ch is '-' or '_' or ' ')
+            ? rawName.ToCamelCase()
+            : rawName;
+        string candidate = TypeScriptNaming.SanitizeIdentifier(camelName, asParameter: true);
+
+        // A name that is taken (by another parameter or by the method's own parameters) gets
+        // its location as a prefix, so "id" in the query becomes "queryId". The wire name is untouched.
+        string binding = candidate;
+        if (!usedBindings.Add(binding))
+        {
+            string prefixed = location + TypeScriptNaming.ToPascalCase(candidate);
+            binding = prefixed;
+            int counter = 2;
+            while (!usedBindings.Add(binding))
+            {
+                binding = prefixed + counter++;
+            }
+        }
+
+        return new ParameterInfo
+        {
+            OriginalName = rawName,
+            Name = binding,
+            Type = schema != null ? ResolveInlineType(schema) : "string",
+            Required = required,
+        };
     }
 
     private string GetDefaultBaseUrl()
     {
-        string? serverUrl = _document.Servers?.FirstOrDefault()?.Url;
-        if (!string.IsNullOrWhiteSpace(serverUrl))
+        OpenApiServer? server = _document.Servers?.FirstOrDefault();
+        string? serverUrl = server?.Url;
+        if (string.IsNullOrWhiteSpace(serverUrl))
         {
-            return serverUrl;
+            return string.Empty;
         }
 
-        return string.Empty;
+        // Server variables are replaced by their default value. A variable without one
+        // leaves the URL incomplete, so there is no usable default.
+        string resolved = Regex.Replace(serverUrl, @"\{([^{}]+)\}", match =>
+        {
+            string variableName = match.Groups[1].Value;
+            if (server!.Variables != null
+                && server.Variables.TryGetValue(variableName, out OpenApiServerVariable? variable)
+                && !string.IsNullOrEmpty(variable.Default))
+            {
+                return variable.Default;
+            }
+
+            return match.Value;
+        });
+
+        return Regex.IsMatch(resolved, @"\{[^{}]*\}") ? string.Empty : resolved;
     }
 
     private string GetOperationName(string path, HttpMethod method, OpenApiOperation operation, Dictionary<string, (string Path, string Method)> usedNames)
@@ -670,7 +1167,7 @@ internal sealed class TypeScriptGenerator
         string candidate;
         if (!string.IsNullOrWhiteSpace(operation.OperationId))
         {
-            candidate = SanitizeIdentifier(ToPascalCase(operation.OperationId));
+            candidate = TypeScriptNaming.SanitizeIdentifier(TypeScriptNaming.ToPascalCase(operation.OperationId));
         }
         else
         {
@@ -682,7 +1179,7 @@ internal sealed class TypeScriptGenerator
                 pathSuffix = "Root";
             }
 
-            candidate = SanitizeIdentifier(methodPrefix + pathSuffix);
+            candidate = TypeScriptNaming.SanitizeIdentifier(methodPrefix + pathSuffix);
         }
 
         string baseName = candidate;
@@ -692,15 +1189,15 @@ internal sealed class TypeScriptGenerator
             return candidate;
         }
 
-        // Duplicate detected â€” derive a readable suffix from the raw path
+        // Duplicate detected - derive a readable suffix from the raw path
         string suffix = BuildDuplicateSuffix(path, method.Method, usedNames[baseName].Path, usedNames[baseName].Method);
-        candidate = SanitizeIdentifier(baseName + suffix);
+        candidate = TypeScriptNaming.SanitizeIdentifier(baseName + suffix);
 
         // Should be unique now, but handle edge case
         int counter = 2;
         while (usedNames.ContainsKey(candidate))
         {
-            candidate = SanitizeIdentifier(baseName + suffix + counter);
+            candidate = TypeScriptNaming.SanitizeIdentifier(baseName + suffix + counter);
             counter++;
         }
 
@@ -708,7 +1205,7 @@ internal sealed class TypeScriptGenerator
 
         string existingPath = usedNames[baseName].Path;
         string existingMethod = usedNames[baseName].Method;
-        DuplicateWarnings.Add($"Duplicate method name \"{baseName}\" for {existingMethod} {existingPath} and {method.Method} {path}. Suffix added: \"{candidate}\".");
+        Warnings.Add($"Duplicate method name \"{baseName}\" for {existingMethod} {existingPath} and {method.Method} {path}. Suffix added: \"{candidate}\".");
 
         return candidate;
     }
@@ -726,24 +1223,24 @@ internal sealed class TypeScriptGenerator
             string s2 = segments2[i];
             if (!string.Equals(s1, s2, StringComparison.OrdinalIgnoreCase))
             {
-                return "_" + SanitizeIdentifier(ToPascalCase(s1));
+                return "_" + TypeScriptNaming.SanitizeIdentifier(TypeScriptNaming.ToPascalCase(s1));
             }
         }
 
-        // Paths are structurally identical â€” use param names if present
+        // Paths are structurally identical - use param names if present
         string lastParam1 = ExtractLastParamName(path1);
         string lastParam2 = ExtractLastParamName(path2);
         if (!string.IsNullOrEmpty(lastParam1) || !string.IsNullOrEmpty(lastParam2))
         {
-            string p1 = string.IsNullOrEmpty(lastParam1) ? "Default" : ToPascalCase(lastParam1);
-            string p2 = string.IsNullOrEmpty(lastParam2) ? "Default" : ToPascalCase(lastParam2);
+            string p1 = string.IsNullOrEmpty(lastParam1) ? "Default" : TypeScriptNaming.ToPascalCase(lastParam1);
+            string p2 = string.IsNullOrEmpty(lastParam2) ? "Default" : TypeScriptNaming.ToPascalCase(lastParam2);
             if (p1 != p2)
             {
-                return "_" + SanitizeIdentifier(p1);
+                return "_" + TypeScriptNaming.SanitizeIdentifier(p1);
             }
         }
 
-        // Fallback â€” should not reach here
+        // Fallback - should not reach here
         return "_V2";
     }
 
@@ -791,82 +1288,6 @@ internal sealed class TypeScriptGenerator
         }
 
         return sb.ToString();
-    }
-
-    private static string ToPascalCase(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "Unknown";
-        }
-
-        // Insert separators at camelCase boundaries so the library's ToPascalCase
-        // treats each word independently (it otherwise lowercases the trailing text).
-        string separated = Regex.Replace(value, "(?<=[a-z0-9])(?=[A-Z])", " ");
-        return separated.ToPascalCase();
-    }
-
-    private static string SanitizeIdentifier(string value)
-    {
-        return SanitizeIdentifier(value, asParameter: false);
-    }
-
-    private static string SanitizeIdentifier(string value, bool asParameter)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "_";
-        }
-
-        string sanitized = Regex.Replace(value, "[^a-zA-Z0-9_$]", "_");
-
-        if (char.IsDigit(sanitized[0]))
-        {
-            sanitized = "_" + sanitized;
-        }
-
-        // Reserved words can't be used as bare identifiers in TypeScript.
-        //  - As property/method/type names they are valid when quoted ("class").
-        //  - As parameter bindings they must stay valid identifiers, so prefix "_".
-        if (IsJavaScriptReservedWord(sanitized))
-        {
-            return asParameter ? "_" + sanitized : "\"" + sanitized + "\"";
-        }
-
-        if (sanitized == "_")
-        {
-            sanitized = "param";
-        }
-
-        return sanitized;
-    }
-
-    private static string StripHttpVerbPrefix(string name, string httpMethod)
-    {
-        if (name.Length > httpMethod.Length && name.StartsWith(httpMethod, StringComparison.OrdinalIgnoreCase))
-        {
-            string stripped = name.Substring(httpMethod.Length);
-            return char.ToLowerInvariant(stripped[0]) + stripped.Substring(1);
-        }
-
-        return name;
-    }
-
-    private static bool IsJavaScriptReservedWord(string word)
-    {
-        string[] reserved =
-        [
-            "break", "case", "catch", "class", "const", "continue", "debugger", "default",
-            "delete", "do", "else", "export", "extends", "finally", "for", "function",
-            "if", "import", "in", "instanceof", "new", "return", "super", "switch",
-            "this", "throw", "try", "typeof", "var", "void", "while", "with", "yield",
-            "let", "static", "enum", "await", "implements", "interface", "package",
-            "private", "protected", "public", "abstract", "boolean", "byte", "char",
-            "double", "final", "float", "goto", "int", "long", "native", "short",
-            "synchronized", "throws", "transient", "volatile", "null", "true", "false"
-        ];
-
-        return reserved.Contains(word);
     }
 
     private static IOpenApiSchema? GetRequestBodySchema(OpenApiOperation operation)
@@ -948,19 +1369,31 @@ internal sealed class TypeScriptGenerator
         return _skipPathPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string BuildUrl(string path, List<ParameterInfo> pathParams)
+    /// <summary>
+    /// The path argument of the request call: a plain string when the path has no variables,
+    /// otherwise a template string with every variable passed through encodeURIComponent.
+    /// </summary>
+    private static string BuildUrl(OperationInfo operation)
     {
-        if (pathParams.Count == 0)
+        if (operation.PathParams.Count == 0)
         {
-            return $"'{path}'";
+            return TypeScriptNaming.SingleQuotedLiteral(operation.Path);
         }
 
-        string url = path;
+        StringBuilder url = new();
+        int position = 0;
 
-        foreach (ParameterInfo param in pathParams)
+        foreach (Match match in Regex.Matches(operation.Path, @"\{([^{}]+)\}"))
         {
-            url = url.Replace($"{{{param.OriginalName}}}", $"${{encodeURIComponent({param.Name})}}");
+            url.Append(TypeScriptNaming.TemplateLiteralText(operation.Path[position..match.Index]));
+
+            ParameterInfo param = operation.PathParams.First(p => p.OriginalName == match.Groups[1].Value);
+            url.Append($"${{encodeURIComponent({param.Name})}}");
+
+            position = match.Index + match.Length;
         }
+
+        url.Append(TypeScriptNaming.TemplateLiteralText(operation.Path[position..]));
 
         return $"`{url}`";
     }
@@ -971,7 +1404,7 @@ internal sealed class TypeScriptGenerator
 
         if (queryParams.Count > 0)
         {
-            IEnumerable<string> names = queryParams.Select(p => p.OriginalName == p.Name ? p.Name : $"{p.OriginalName}: {p.Name}");
+            IEnumerable<string> names = queryParams.Select(p => p.OriginalName == p.Name ? p.Name : $"{TypeScriptNaming.QuoteKey(p.OriginalName)}: {p.Name}");
             parts.Add("params: { " + string.Join(", ", names) + " }");
         }
 
@@ -989,6 +1422,7 @@ internal sealed class TypeScriptGenerator
     private sealed class OperationInfo
     {
         public required string Name { get; init; }
+        public required bool NameFromPath { get; init; }
         public required string Path { get; init; }
         public required string HttpMethod { get; init; }
         public required string Summary { get; init; }
@@ -998,6 +1432,7 @@ internal sealed class TypeScriptGenerator
         public IOpenApiSchema? ResponseSchema { get; init; }
         public string? RequestBodyType { get; set; }
         public string ReturnType { get; set; } = "void";
+        public string MethodName { get; set; } = string.Empty;
     }
 
     private sealed class ParameterInfo
@@ -1007,6 +1442,6 @@ internal sealed class TypeScriptGenerator
         public required string Type { get; init; }
         public required bool Required { get; init; }
     }
+
+    private sealed record SignatureParameter(string Name, string Type, bool Optional);
 }
-
-

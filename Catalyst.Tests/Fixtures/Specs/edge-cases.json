@@ -1,0 +1,216 @@
+{
+  "openapi": "3.0.1",
+  "info": { "title": "Edge Cases", "version": "1.0.0" },
+  "servers": [
+    {
+      "url": "https://{host}/api/{version}",
+      "variables": {
+        "host": { "default": "api.example.com" },
+        "version": { "default": "v1" }
+      }
+    }
+  ],
+  "paths": {
+    "/items": {
+      "post": {
+        "summary": "Create an item",
+        "parameters": [
+          { "name": "notify", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item.Dto" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item.Dto" } } }
+          }
+        }
+      }
+    },
+    "/items/{id}": {
+      "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "get": {
+        "summary": "Get an item. Mentions a */ comment terminator",
+        "parameters": [
+          { "name": "page-size", "in": "query", "schema": { "type": "integer" } },
+          { "name": "api-version", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "request", "in": "query", "schema": { "type": "string" } },
+          { "name": "id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Item.Dto" } } }
+          }
+        }
+      },
+      "put": {
+        "parameters": [
+          { "name": "dryRun", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Derived" } } }
+        },
+        "responses": { "204": { "description": "Updated" } }
+      }
+    },
+    "/orders/{orderId}/lines/{lineNo}": {
+      "get": {
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "ghost", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Wrapper" } } }
+          }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "operationId": "getSearch",
+        "parameters": [
+          { "name": "tags", "in": "query", "schema": { "type": "array", "items": { "type": "string" } } },
+          { "name": "body", "in": "query", "schema": { "type": "string" } },
+          { "name": "signal", "in": "query", "schema": { "type": "string" } },
+          { "name": "headers", "in": "query", "schema": { "type": "string" } },
+          { "name": "kind", "in": "query", "required": true, "schema": { "$ref": "#/components/schemas/Quoted" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Tags" } } }
+          }
+        }
+      }
+    },
+    "/postcodes": {
+      "post": {
+        "operationId": "PostcodeLookup",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Id" } } }
+          }
+        }
+      }
+    },
+    "/ping": {
+      "get": {
+        "operationId": "getPing",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/bag": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Bag" } } }
+          }
+        }
+      }
+    },
+    "/default-only": {
+      "get": {
+        "responses": {
+          "default": {
+            "description": "Success",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Base" } } }
+          }
+        }
+      }
+    },
+    "/success-and-default": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Base" } } }
+          },
+          "default": {
+            "description": "Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Links-Self" } } }
+          }
+        }
+      }
+    },
+    "/default-empty": {
+      "delete": {
+        "responses": { "default": { "description": "No content" } }
+      }
+    },
+    "/internal/health": {
+      "get": {
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Item.Dto": {
+        "description": "An item. Mentions a */ comment terminator",
+        "type": "object",
+        "required": ["x-trace"],
+        "properties": {
+          "x-trace": { "type": "string" },
+          "@odata.type": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/IntegerStatus" },
+          "owner": { "nullable": true, "allOf": [{ "$ref": "#/components/schemas/Derived" }] },
+          "either": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+          "maybe": { "oneOf": [{ "type": "null" }, { "$ref": "#/components/schemas/Base" }] },
+          "link": { "$ref": "#/components/schemas/Links-Self" }
+        }
+      },
+      "Links-Self": {
+        "type": "object",
+        "properties": { "href": { "type": "string" } }
+      },
+      "Wrapper": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "$ref": "#/components/schemas/Quoted" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Item.Dto" } },
+          "attributes": { "type": "object", "additionalProperties": { "type": "string" } },
+          "choices": { "type": "array", "items": { "oneOf": [{ "type": "string" }, { "type": "integer" }] } },
+          "point": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+          }
+        }
+      },
+      "IntegerStatus": { "type": "integer", "enum": [0, 1, 2] },
+      "Quoted": { "type": "string", "enum": ["say \"hi\"", "back\\slash", "plain"] },
+      "Id": { "type": "string", "format": "uuid" },
+      "Tags": { "type": "array", "items": { "type": "string" } },
+      "Bag": { "type": "object" },
+      "Base": { "type": "object", "properties": { "id": { "type": "string" } } },
+      "Derived": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Base" },
+          { "type": "object", "properties": { "name": { "type": "string" } } }
+        ]
+      }
+    }
+  }
+}

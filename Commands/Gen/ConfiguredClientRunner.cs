@@ -117,7 +117,7 @@ internal static class ConfiguredClientRunner
                 warnings.Add($"OpenAPI spec has {parseResult.Value!.Diagnostic.Errors.Count} validation error(s). Generated code may be incomplete.");
             }
 
-            warnings.AddRange(generator.DuplicateWarnings);
+            warnings.AddRange(generator.Warnings);
 
             return new ConfiguredClientOutcome(name, true, outputPath, null, warnings);
         }

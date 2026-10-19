@@ -1,0 +1,10 @@
+{
+  "name": "catalyst-generated-client-tests",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Compiles and exercises the generated TypeScript clients (see GeneratedTypeScriptTests.cs)",
+  "type": "module",
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

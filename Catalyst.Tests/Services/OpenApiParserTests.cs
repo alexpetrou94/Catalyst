@@ -5,7 +5,7 @@ public class OpenApiParserTests
     [Fact]
     public void Parse_ReturnsSuccess_ForValidSpec()
     {
-        string json = File.ReadAllText("Fixtures/openapi-example.json");
+        string json = File.ReadAllText(TestPaths.SpecPath("enterprise"));
 
         Result<OpenApiParseResult> result = OpenApiParser.Parse(json);
 
@@ -17,7 +17,7 @@ public class OpenApiParserTests
     [Fact]
     public void Parse_ReturnsSuccess_WithDiagnostics_ForInvalidSpec()
     {
-        string json = File.ReadAllText("Fixtures/openapi-invalid.json");
+        string json = File.ReadAllText(TestPaths.FixturePath("openapi-invalid.json"));
 
         Result<OpenApiParseResult> result = OpenApiParser.Parse(json);
 

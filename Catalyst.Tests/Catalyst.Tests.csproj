@@ -19,19 +19,17 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="Fixtures\openapi-example.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
+        <None Remove="TypeScript\node_modules\**;TypeScript\build\**" />
+    </ItemGroup>
+
+    <ItemGroup>
         <None Update="Fixtures\openapi-invalid.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="Fixtures\openapi-ref.json">
+        <None Update="Fixtures\Specs\**">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="Fixtures\openapi-minimal.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Update="Fixtures\generated-api-example.ts">
+        <None Update="Snapshots\**">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>

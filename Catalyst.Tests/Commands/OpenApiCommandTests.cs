@@ -1,8 +1,12 @@
 using Catalyst.Common.Configuration;
 using Catalyst.Commands.Gen;
+using Spectre.Console;
+using Spectre.Console.Cli;
 
 namespace Catalyst.Tests.Commands;
 
+// The tests that run the command replace the static AnsiConsole, so they must not overlap.
+[Collection("AnsiConsole")]
 public class OpenApiCommandTests
 {
     private static CatalystConfig ConfigWith(params string[] skipPaths) => new CatalystConfig
@@ -145,5 +149,49 @@ public class OpenApiCommandTests
     {
         Assert.False(new OpenApiCommand.Settings { Source = "spec.json", Language = "typescript" }.Validate().Successful);
         Assert.True(new OpenApiCommand.Settings { Source = "spec.json", Language = "typescript", Output = "api.ts" }.Validate().Successful);
+    }
+
+    [Fact]
+    public void Run_ReportsMissingSourceFile_EvenWhenItsNameLooksLikeMarkup()
+    {
+        // "[1]" is a Spectre style tag in markup; the error must be printed as text, not parsed.
+        string source = Path.Combine(Path.GetTempPath(), "catalyst-missing", "api[1].json");
+
+        (int exitCode, string output) = RunCommand("--source", source);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("File not found", output);
+        Assert.Contains("api[1].json", output);
+    }
+
+    private static (int ExitCode, string Output) RunCommand(params string[] arguments)
+    {
+        StringWriter writer = new();
+        IAnsiConsole previous = AnsiConsole.Console;
+        IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = AnsiSupport.No,
+            ColorSystem = ColorSystemSupport.NoColors,
+            Out = new AnsiConsoleOutput(writer),
+        });
+        console.Profile.Width = 1000;
+
+        AnsiConsole.Console = console;
+        try
+        {
+            CommandApp app = new();
+            app.Configure(config =>
+            {
+                config.PropagateExceptions();
+                config.AddCommand<OpenApiCommand>("openapi");
+            });
+
+            int exitCode = app.Run(["openapi", .. arguments]);
+            return (exitCode, writer.ToString());
+        }
+        finally
+        {
+            AnsiConsole.Console = previous;
+        }
     }
 }

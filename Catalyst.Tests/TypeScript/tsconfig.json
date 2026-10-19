@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "rootDir": "..",
+    "outDir": "build",
+    "sourceMap": false,
+    "types": []
+  },
+  "include": ["../Snapshots/*.ts"]
+}
