@@ -22,3 +22,16 @@ describe("relative base URL", () => {
         });
     });
 });
+
+describe("binary request body", () => {
+    it("sends a Blob as is with an octet-stream content-type", async () => {
+        await withFetch(() => jsonResponse({ code: 200 }), async (calls) => {
+            const image = new Blob([new Uint8Array([1, 2, 3])]);
+            await createClient().post.UploadFile(7, image, "cat.png");
+
+            assert.equal(calls[0].url, "/api/v3/pet/7/uploadImage?additionalMetadata=cat.png");
+            assert.equal(calls[0].init.body, image);
+            assert.equal(calls[0].init.headers["Content-Type"], "application/octet-stream");
+        });
+    });
+});

@@ -194,3 +194,68 @@ describe("timeouts", () => {
         });
     });
 });
+
+describe("multipart bodies", () => {
+    const pending = () => new Response(null, { status: 204 });
+
+    it("builds FormData with files, repeated array entries and JSON objects, and leaves the content-type to fetch", async () => {
+        await withFetch(pending, async (calls) => {
+            const file = new Blob(["abc"], { type: "text/plain" });
+            await createClient().post.CreateUpload({ file, tags: ["a", "b"], meta: { id: "1" }, note: undefined });
+
+            const form = calls[0].init.body;
+            assert.ok(form instanceof FormData);
+            assert.equal(await form.get("file").text(), "abc");
+            assert.deepEqual(form.getAll("tags"), ["a", "b"]);
+            assert.equal(form.get("meta"), '{"id":"1"}');
+            assert.equal(form.has("note"), false);
+            assert.deepEqual(headerNames(calls[0]).filter((name) => name === "content-type"), []);
+        });
+    });
+
+    it("passes FormData supplied by the caller through untouched", async () => {
+        await withFetch(pending, async (calls) => {
+            const form = new FormData();
+            form.append("file", new Blob(["x"]));
+            await createClient().post.CreateUpload(form);
+
+            assert.equal(calls[0].init.body, form);
+        });
+    });
+});
+
+describe("other body encodings", () => {
+    const pending = () => new Response(null, { status: 204 });
+
+    it("sends a urlencoded body with its content-type", async () => {
+        await withFetch(pending, async (calls) => {
+            await createClient().post.CreateLogin({ username: "a b", scopes: ["x", "y"], remember: true });
+
+            assert.equal(String(calls[0].init.body), "username=a+b&scopes=x&scopes=y&remember=true");
+            assert.equal(calls[0].init.headers["Content-Type"], "application/x-www-form-urlencoded");
+        });
+    });
+
+    it("sends text as is with a text/plain content-type unless the caller chose one", async () => {
+        await withFetch(pending, async (calls) => {
+            await createClient().put.notes("hello");
+            await createClient().put.notes("hello", { "content-type": "text/markdown" });
+
+            assert.equal(calls[0].init.body, "hello");
+            assert.equal(calls[0].init.headers["Content-Type"], "text/plain");
+            assert.deepEqual(Object.keys(calls[1].init.headers), ["content-type"]);
+        });
+    });
+});
+
+describe("binary responses", () => {
+    it("returns a Blob with the bytes of the response", async () => {
+        const bytes = new Uint8Array([137, 80, 78, 71]);
+        await withFetch(() => new Response(bytes, { headers: { "content-type": "image/png" } }), async () => {
+            const result = await createClient().get.avatar("me");
+
+            assert.ok(result.data instanceof Blob);
+            assert.deepEqual(new Uint8Array(await result.data.arrayBuffer()), bytes);
+        });
+    });
+});

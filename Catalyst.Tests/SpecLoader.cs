@@ -26,7 +26,6 @@ internal static class SpecLoader
             document,
             className,
             skipPaths,
-            generatedAt: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             generatorVersion: "0.0.0-test");
     }
 }

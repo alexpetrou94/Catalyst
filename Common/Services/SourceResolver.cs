@@ -6,7 +6,7 @@ namespace Catalyst.Common.Services;
 
 internal static class SourceResolver
 {
-    private static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan DefaultHttpTimeout = TimeSpan.FromSeconds(30);
 
     public static SourceType DetermineSourceType(string source)
     {
@@ -29,13 +29,17 @@ internal static class SourceResolver
     public static Task<Result<SourceResolveResult>> Resolve(string source, CancellationToken cancellationToken)
         => Resolve(source, insecure: false, cancellationToken);
 
-    public static async Task<Result<SourceResolveResult>> Resolve(string source, bool insecure, CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads the spec from a file or URL. Cancelling <paramref name="cancellationToken"/> throws an
+    /// <see cref="OperationCanceledException"/>; only a real timeout is reported as an error result.
+    /// </summary>
+    public static async Task<Result<SourceResolveResult>> Resolve(string source, bool insecure, CancellationToken cancellationToken, TimeSpan? timeout = null)
     {
         SourceType type = DetermineSourceType(source);
 
         if (type == SourceType.Url)
         {
-            return await ResolveUrl(source, insecure, cancellationToken).ConfigureAwait(false);
+            return await ResolveUrl(source, insecure, timeout ?? DefaultHttpTimeout, cancellationToken).ConfigureAwait(false);
         }
 
         if (type == SourceType.FilePath)
@@ -60,13 +64,13 @@ internal static class SourceResolver
         return handler;
     }
 
-    private static async Task<Result<SourceResolveResult>> ResolveUrl(string url, bool insecure, CancellationToken cancellationToken)
+    private static async Task<Result<SourceResolveResult>> ResolveUrl(string url, bool insecure, TimeSpan timeout, CancellationToken cancellationToken)
     {
         try
         {
             using HttpClientHandler handler = CreateHttpHandler(insecure);
             using HttpClient client = new HttpClient(handler);
-            client.Timeout = HttpTimeout;
+            client.Timeout = timeout;
             client.DefaultRequestHeaders.Add("User-Agent", "Catalyst-CLI/1.0");
             string content = await client.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
 
@@ -81,9 +85,14 @@ internal static class SourceResolver
         {
             return Result<SourceResolveResult>.Error($"Failed to fetch URL: {ex.Message}");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller cancelled (Ctrl+C): that is not a timeout.
+            throw;
+        }
         catch (TaskCanceledException)
         {
-            return Result<SourceResolveResult>.Error("Request timed out after 30 seconds.");
+            return Result<SourceResolveResult>.Error($"Request timed out after {timeout.TotalSeconds:0.##} seconds.");
         }
         catch (Exception ex)
         {

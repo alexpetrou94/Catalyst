@@ -23,16 +23,18 @@ catalyst gen openapi --source ./swagger.json
 catalyst gen openapi --source https://localhost:7036/openapi/v1.json --insecure
 ```
 
-Generate a TypeScript client:
+Generate a TypeScript client (`--output` alone is enough; the language defaults to `typescript`):
 
 ```bash
 catalyst gen openapi \
   --source https://localhost:7036/openapi/v1.json \
-  --language typescript \
   --output ./src/external-apis \
   --class-name SyncfullyCommunicationApi \
   --insecure
 ```
+
+Specifications can be JSON or YAML, from a file or a URL. The format is detected from the
+extension (`.json`, `.yaml`, `.yml`) and otherwise from the content.
 
 Generate **every** client configured in `catalyst.config.json` (see below) in one run:
 
@@ -42,9 +44,9 @@ catalyst gen openapi
 
 | Option | Description |
 | --- | --- |
-| `--source <path\|url>` | Local JSON file or URL to an OpenAPI specification. Omit it to generate every configured client |
-| `--language <language>` | Output language; `typescript` is supported |
-| `--output <path>` | Output file, or a directory (the file is named after `--class-name`) |
+| `--source <path\|url>` | Local JSON or YAML file, or URL, of an OpenAPI specification. Omit it to generate every configured client |
+| `--language <language>` | Output language; `typescript` is supported and is the default whenever `--output` is given. With neither option the spec is only validated |
+| `--output <path>` | Output file, or a folder (the file is named after `--class-name`). A path with a trailing separator, an existing directory, or no file extension is a folder |
 | `--class-name <name>` | Generated client name; defaults to the API title |
 | `--skip-paths <paths>` | Comma-separated path prefixes to skip; overrides `catalyst.config.json` |
 | `--insecure` | Skip TLS validation for a local HTTPS server with a self-signed certificate |
@@ -91,11 +93,27 @@ tools such as the Syncfully Workbench list these projects and prefill their gene
 
 Notes:
 
-* An `output` without a file extension is treated as a folder and the file is named after
-  `name`; use a `.ts` file path to control the exact file name.
+* `output` follows the same rule as `--output`: a path with a trailing separator, an existing
+  directory, or no file extension is a folder and the file is named after `name`; use a `.ts`
+  file path to control the exact file name.
 * `catalyst gen openapi` exits `0` only when every configured client was written; clients that
   cannot be generated (for example a missing `source`) are reported and the exit code is `1`.
 * `--source` and the other single-client options stay available and unchanged for one-off runs.
+* Any failure while generating one client (not just a missing source) fails only that client; the
+  others still run.
+
+### Output behaviour
+
+* The generated file is deterministic: it carries the generator version but no timestamp, so
+  regenerating an unchanged spec yields an identical file.
+* A file whose content would not change is not rewritten (its modification time stays put). The
+  run still prints `TypeScript generated: <path>` (tools parse that line), followed by
+  `Unchanged since the last generation; file not rewritten.`
+* Errors and warnings are written to **stderr**; results and progress go to **stdout**. Ctrl+C
+  stops the run with `Cancelled.` and exit code `130`.
+* Request and response bodies follow the media types of the spec: JSON, `multipart/form-data`,
+  `application/x-www-form-urlencoded`, `text/plain` and raw binary bodies are encoded by the
+  generated client, and binary responses (images, PDFs, octet-stream) are returned as `Blob`.
 
 ## Releases
 

@@ -18,15 +18,15 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
     public class Settings : CommandSettings
     {
         [CommandOption("--source <SOURCE>")]
-        [Description("Path to a local JSON file or a URL to an OpenAPI specification. Omit it to generate every client defined in catalyst.config.json.")]
+        [Description("Path to a local JSON or YAML file, or a URL, of an OpenAPI specification. Omit it to generate every client defined in catalyst.config.json.")]
         public string Source { get; init; } = string.Empty;
 
         [CommandOption("--language <LANGUAGE>")]
-        [Description("Output language for code generation. Options: typescript")]
+        [Description("Output language for code generation. Options: typescript. Defaults to typescript when --output is given")]
         public string? Language { get; init; }
 
         [CommandOption("--output <PATH>")]
-        [Description("Output file or directory path. Required when --language is specified. When a directory is given, the file is named after --class-name")]
+        [Description("Output file or directory path. Required when --language is specified. A path with a trailing separator, an existing directory, or no file extension is a folder: the file is named after --class-name")]
         public string? Output { get; init; }
 
         [CommandOption("--class-name <NAME>")]
@@ -40,6 +40,12 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         [CommandOption("--insecure")]
         [Description("Skip TLS certificate validation when fetching a remote OpenAPI spec over HTTPS. Only use with a local server that has an untrusted (e.g. self-signed) certificate. Validation stays enabled by default.")]
         public bool Insecure { get; init; }
+
+        /// <summary>The language to generate: --language, else typescript whenever --output is given. Null means validate only.</summary>
+        internal string? EffectiveLanguage =>
+            !string.IsNullOrWhiteSpace(Language) ? Language
+            : !string.IsNullOrWhiteSpace(Output) ? "typescript"
+            : null;
 
         public override ValidationResult Validate()
         {
@@ -78,6 +84,28 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 
     protected override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
+        return await RunAsync(settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Runs the command; cancellation (Ctrl+C) ends it with "Cancelled." and exit code 130.</summary>
+    internal static async Task<int> RunAsync(Settings settings, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ExecuteCoreAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            Terminal.WriteWarning("Cancelled.", label: false);
+            return CancelledExitCode;
+        }
+    }
+
+    /// <summary>The conventional exit code for a process stopped with Ctrl+C (128 + SIGINT).</summary>
+    internal const int CancelledExitCode = 130;
+
+    private static async Task<int> ExecuteCoreAsync(Settings settings, CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(settings.Source))
         {
             return await ExecuteConfiguredClientsAsync(cancellationToken).ConfigureAwait(false);
@@ -86,22 +114,22 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, settings.Insecure, cancellationToken).ConfigureAwait(false);
         if (!resolveResult.IsSuccess)
         {
-            AnsiConsole.MarkupLine(FormatError(resolveResult.ErrorMessage));
+            Terminal.WriteError(resolveResult.ErrorMessage);
             return 1;
         }
 
-        Result<OpenApiParseResult> parseResult = OpenApiParser.Parse(resolveResult.Value!.Content);
+        Result<OpenApiParseResult> parseResult = OpenApiParser.Parse(resolveResult.Value!.Content, resolveResult.Value!.DisplayPath);
         if (!parseResult.IsSuccess)
         {
-            AnsiConsole.MarkupLine(FormatError(parseResult.ErrorMessage));
+            Terminal.WriteError(parseResult.ErrorMessage);
             return 1;
         }
 
-        if (!string.IsNullOrWhiteSpace(settings.Language))
+        if (settings.EffectiveLanguage != null)
         {
             if (parseResult.Value!.Diagnostic.Errors.Count > 0)
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] OpenAPI spec has {parseResult.Value!.Diagnostic.Errors.Count} validation error(s). Generated code may be incomplete.");
+                Terminal.WriteWarning($"OpenAPI spec has {parseResult.Value!.Diagnostic.Errors.Count} validation error(s). Generated code may be incomplete.");
             }
 
             return ExecuteGeneration(settings, parseResult.Value!.Document);
@@ -120,19 +148,19 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 
         if (loadResult.Error is not null)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(loadResult.Error)}");
+            Terminal.WriteError(loadResult.Error);
             return 1;
         }
 
         if (loadResult.Config is null || loadResult.Path is null)
         {
-            AnsiConsole.MarkupLine("[red]Error:[/] No catalyst.config.json found in this directory or any parent. Pass --source to generate a single client.");
+            Terminal.WriteError("No catalyst.config.json found in this directory or any parent. Pass --source to generate a single client.");
             return 1;
         }
 
         if (loadResult.Config.Gen.OpenApi.Clients.Count == 0)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(loadResult.Path)} defines no clients under gen.openapi.clients.");
+            Terminal.WriteError($"{loadResult.Path} defines no clients under gen.openapi.clients.");
             return 1;
         }
 
@@ -148,16 +176,16 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         {
             if (outcome.Success)
             {
-                AnsiConsole.MarkupLine($"[green]TypeScript generated:[/] {Markup.Escape(outcome.OutputPath!)}");
+                WriteGeneratedLine(outcome.OutputPath!, outcome.Unchanged);
 
                 foreach (string warning in outcome.Warnings)
                 {
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
+                    Terminal.WriteWarning(warning);
                 }
             }
             else
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(outcome.Name)}: {Markup.Escape(outcome.Error ?? "Unknown error")}");
+                Terminal.WriteError($"{outcome.Name}: {outcome.Error ?? "Unknown error"}");
             }
         }
 
@@ -169,17 +197,8 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
             return 0;
         }
 
-        AnsiConsole.MarkupLine($"[red]{failed} of {outcomes.Count} client(s) failed.[/]");
+        Terminal.Error.MarkupLine($"[red]{failed} of {outcomes.Count} client(s) failed.[/]");
         return 1;
-    }
-
-    /// <summary>
-    /// Formats an error line as markup. The message usually carries user input (a path such as
-    /// "api[1].json"), which Spectre would otherwise parse as a style tag and throw on.
-    /// </summary>
-    internal static string FormatError(string? message)
-    {
-        return $"[red]Error:[/] {Markup.Escape(message ?? "Unknown error")}";
     }
 
     internal static List<string> ResolveSkipPaths(string[]? cliSkipPaths, CatalystConfig? config = null)
@@ -209,6 +228,11 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         return [];
     }
 
+    /// <summary>
+    /// The one output rule, for the CLI and for configured clients: a trailing separator, an existing
+    /// directory, or a path without a file extension is a folder (the file is named after the class or
+    /// client name); anything else is the file itself.
+    /// </summary>
     internal static string ResolveOutputPath(string? output, string? className)
     {
         if (string.IsNullOrWhiteSpace(output))
@@ -218,7 +242,8 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 
         bool looksLikeDirectory = output.EndsWith(Path.DirectorySeparatorChar)
             || output.EndsWith(Path.AltDirectorySeparatorChar)
-            || Directory.Exists(output);
+            || Directory.Exists(output)
+            || !Path.HasExtension(output);
 
         if (!looksLikeDirectory)
         {
@@ -239,22 +264,32 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         return string.IsNullOrWhiteSpace(sanitized) ? "api" : sanitized;
     }
 
+    /// <summary>
+    /// Reports a generated file. The "TypeScript generated: &lt;path&gt;" line is a contract with tools that
+    /// parse the output (the Syncfully Workbench), so it is identical whether or not the file was rewritten;
+    /// an unchanged file only adds an info line after it.
+    /// </summary>
+    internal static void WriteGeneratedLine(string outputPath, bool unchanged)
+    {
+        // Plain text, never wrapped: a path split over two lines would hide it from tools that parse this line.
+        Terminal.WriteLine(Terminal.Out, "TypeScript generated:", Path.GetFullPath(outputPath), AnsiColor.Green);
+
+        if (unchanged)
+        {
+            AnsiConsole.MarkupLine("[grey]Unchanged since the last generation; file not rewritten.[/]");
+        }
+    }
+
     private static int ExecuteGeneration(Settings settings, OpenApiDocument document)
     {
-        if (settings.Language!.Equals("typescript", StringComparison.OrdinalIgnoreCase))
+        if (settings.EffectiveLanguage!.Equals("typescript", StringComparison.OrdinalIgnoreCase))
         {
             List<string> skipPaths = ResolveSkipPaths(settings.SkipPaths);
             TypeScriptGenerator generator = new TypeScriptGenerator(document, settings.ClassName, skipPaths);
             string code = generator.Generate();
 
             string outputPath = ResolveOutputPath(settings.Output, settings.ClassName);
-            string? directory = Path.GetDirectoryName(outputPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            File.WriteAllText(outputPath, code);
+            bool written = GeneratedFileWriter.WriteIfChanged(outputPath, code);
 
             if (generator.SkippedPathCount > 0)
             {
@@ -263,14 +298,14 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
 
             foreach (string warning in generator.Warnings)
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
+                Terminal.WriteWarning(warning);
             }
 
-            AnsiConsole.MarkupLine($"[green]TypeScript generated:[/] {Markup.Escape(outputPath)}");
+            WriteGeneratedLine(outputPath, unchanged: !written);
             return 0;
         }
 
-        AnsiConsole.MarkupLine(FormatError($"Unsupported language: {settings.Language}"));
+        Terminal.WriteError($"Unsupported language: {settings.Language}");
         return 1;
     }
 
@@ -281,7 +316,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         if (diagnostic.Errors.Count > 0)
         {
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[red]Validation failed with errors.[/]");
+            Terminal.Error.MarkupLine("[red]Validation failed with errors.[/]");
             return 1;
         }
 

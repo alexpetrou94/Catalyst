@@ -11,7 +11,7 @@ using Spectre.Console.Cli;
 // - one line per message: Spectre otherwise wraps at a default 80 columns and splits paths.
 //   The width is bounded so rules and tables stay readable; a path longer than the width can
 //   still wrap, which consumers treat as a best-effort success line.
-if (Console.IsOutputRedirected)
+if (Console.IsOutputRedirected || Console.IsErrorRedirected)
 {
     try
     {
@@ -22,7 +22,12 @@ if (Console.IsOutputRedirected)
         // Keep the default encoding when the output handle cannot be reconfigured.
     }
 
-    AnsiConsole.Profile.Width = 140;
+    if (Console.IsOutputRedirected)
+    {
+        AnsiConsole.Profile.Width = 140;
+    }
+
+    // The stderr console (Terminal.Error) applies the same width itself when stderr is redirected.
 }
 
 CommandApp app = new();

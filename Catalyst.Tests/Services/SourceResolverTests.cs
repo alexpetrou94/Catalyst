@@ -230,4 +230,30 @@ public class SourceResolverTests
             _cts.Dispose();
         }
     }
+
+    [Fact]
+    public async Task Resolve_ReportsATimeout_WhenTheServerNeverAnswers()
+    {
+        using TcpListener listener = new(IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        Result<SourceResolveResult> result = await SourceResolver.Resolve(
+            $"http://127.0.0.1:{port}/openapi.json", insecure: false, CancellationToken.None, timeout: TimeSpan.FromMilliseconds(300));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("timed out", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Resolve_ThrowsCancelled_InsteadOfReportingATimeout_WhenTheCallerCancels()
+    {
+        using TcpListener listener = new(IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        using CancellationTokenSource cancellation = new(TimeSpan.FromMilliseconds(300));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => SourceResolver.Resolve(
+            $"http://127.0.0.1:{port}/openapi.json", insecure: false, cancellation.Token));
+    }
 }

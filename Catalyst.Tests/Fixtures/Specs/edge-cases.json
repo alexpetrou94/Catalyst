@@ -159,6 +159,77 @@
         "responses": { "default": { "description": "No content" } }
       }
     },
+    "/uploads": {
+      "post": {
+        "operationId": "createUpload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": { "type": "string", "format": "binary" },
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "meta": { "$ref": "#/components/schemas/Base" },
+                  "note": { "type": "string" }
+                }
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": { "$ref": "#/components/schemas/Base" }
+            }
+          }
+        },
+        "responses": { "204": { "description": "Stored" } }
+      }
+    },
+    "/forms/login": {
+      "post": {
+        "operationId": "createLogin",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": { "type": "string" },
+                  "scopes": { "type": "array", "items": { "type": "string" } },
+                  "remember": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "204": { "description": "Logged in" } }
+      }
+    },
+    "/notes": {
+      "put": {
+        "operationId": "putNotes",
+        "requestBody": {
+          "content": { "text/plain": { "schema": { "type": "string" } } }
+        },
+        "responses": { "204": { "description": "Saved" } }
+      }
+    },
+    "/avatars/{id}": {
+      "get": {
+        "operationId": "getAvatar",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image",
+            "content": {
+              "image/png": { "schema": { "type": "string", "format": "binary" } }
+            }
+          }
+        }
+      }
+    },
     "/internal/health": {
       "get": {
         "responses": { "200": { "description": "OK" } }

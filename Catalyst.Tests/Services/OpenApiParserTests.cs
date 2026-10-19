@@ -32,4 +32,51 @@ public class OpenApiParserTests
 
         Assert.False(result.IsSuccess);
     }
+
+    [Theory]
+    [InlineData("openapi: 3.0.1\ninfo: {}", null, true)]
+    [InlineData("{\"openapi\":\"3.0.1\"}", null, false)]
+    [InlineData("  \n{\"openapi\":\"3.0.1\"}", "spec", false)]
+    [InlineData("{\"openapi\":\"3.0.1\"}", "spec.yaml", true)]
+    [InlineData("{\"openapi\":\"3.0.1\"}", "https://example.com/spec.YML?token=1", true)]
+    [InlineData("openapi: 3.0.1", "spec.json", false)]
+    public void IsYaml_DetectsTheFormatFromTheExtensionThenTheContent(string content, string? sourceName, bool expected)
+    {
+        Assert.Equal(expected, OpenApiParser.IsYaml(content, sourceName));
+    }
+
+    [Fact]
+    public void Parse_KeepsNullableOnCompositions_ForYamlToo()
+    {
+        const string yaml = """
+            openapi: 3.0.1
+            info: { title: Yaml, version: "1" }
+            paths: {}
+            components:
+              schemas:
+                Pet: { type: object, properties: { name: { type: string } } }
+                Owner:
+                  type: object
+                  properties:
+                    pet:
+                      nullable: true
+                      allOf:
+                        - $ref: '#/components/schemas/Pet'
+            """;
+
+        OpenApiDocument document = OpenApiParser.Parse(yaml).Value!.Document;
+        string code = SpecLoader.CreateGenerator(document).Generate();
+
+        Assert.Contains("pet?: Pet | null;", code);
+    }
+
+    [Fact]
+    public void Parse_QuotesTheReadersErrors_WhenThereIsNoDocument()
+    {
+        Result<OpenApiParseResult> result = OpenApiParser.Parse("{ \"openapi\": ");
+
+        Assert.False(result.IsSuccess);
+        Assert.StartsWith("Failed to parse OpenAPI document: ", result.ErrorMessage);
+        Assert.DoesNotContain("empty result", result.ErrorMessage);
+    }
 }

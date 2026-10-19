@@ -208,4 +208,72 @@ public class ConfiguredClientRunnerTests
             Directory.Delete(dir, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task RunAsync_ContinuesWithTheNextClient_WhenOneThrowsUnexpectedly()
+    {
+        string dir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "openapi.json"), Spec);
+
+            // A NUL in the output path makes the file system throw an ArgumentException, not an IOException.
+            CatalystConfig config = ConfigWith(
+                new OpenApiClientConfig { Name = "Broken", Source = "openapi.json", Output = "bad\0dir" },
+                new OpenApiClientConfig { Name = "Works", Source = "openapi.json", Output = "out" });
+
+            List<ConfiguredClientOutcome> outcomes = await ConfiguredClientRunner.RunAsync(config, dir, CancellationToken.None);
+
+            Assert.False(outcomes[0].Success);
+            Assert.Equal("Broken", outcomes[0].Name);
+            Assert.False(string.IsNullOrWhiteSpace(outcomes[0].Error));
+            Assert.True(outcomes[1].Success);
+            Assert.True(File.Exists(Path.Combine(dir, "out", "Works.ts")));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ReportsUnchanged_WhenTheFileAlreadyHasTheGeneratedContent()
+    {
+        string dir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "openapi.json"), Spec);
+            CatalystConfig config = ConfigWith(new OpenApiClientConfig { Name = "Api", Source = "openapi.json", Output = "out" });
+
+            ConfiguredClientOutcome first = Assert.Single(await ConfiguredClientRunner.RunAsync(config, dir, CancellationToken.None));
+            ConfiguredClientOutcome second = Assert.Single(await ConfiguredClientRunner.RunAsync(config, dir, CancellationToken.None));
+
+            Assert.False(first.Unchanged);
+            Assert.True(second.Unchanged);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ReportsWhatIsWrongWithAMalformedSpec()
+    {
+        string dir = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "broken.json"), "{ \"openapi\": ");
+            CatalystConfig config = ConfigWith(new OpenApiClientConfig { Name = "Api", Source = "broken.json", Output = "out" });
+
+            ConfiguredClientOutcome outcome = Assert.Single(await ConfiguredClientRunner.RunAsync(config, dir, CancellationToken.None));
+
+            Assert.False(outcome.Success);
+            Assert.DoesNotContain("empty result", outcome.Error);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }

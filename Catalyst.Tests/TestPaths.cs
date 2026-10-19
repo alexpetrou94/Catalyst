@@ -14,9 +14,9 @@ internal static class TestPaths
 
     public static string TypeScriptDirectory => Path.Combine(ProjectDirectory, "TypeScript");
 
-    public static string SpecPath(string name)
+    public static string SpecPath(string name, string extension = ".json")
     {
-        return Path.Combine(AppContext.BaseDirectory, "Fixtures", "Specs", name + ".json");
+        return Path.Combine(AppContext.BaseDirectory, "Fixtures", "Specs", name + extension);
     }
 
     public static string FixturePath(string fileName)

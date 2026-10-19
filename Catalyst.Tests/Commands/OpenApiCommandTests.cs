@@ -1,5 +1,6 @@
 using Catalyst.Common.Configuration;
 using Catalyst.Commands.Gen;
+using System.Text.RegularExpressions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -152,31 +153,211 @@ public class OpenApiCommandTests
     }
 
     [Fact]
-    public void Run_ReportsMissingSourceFile_EvenWhenItsNameLooksLikeMarkup()
+    public void ResolveOutputPath_TreatsAPathWithoutExtensionAsAFolder()
+    {
+        string result = OpenApiCommand.ResolveOutputPath(Path.Combine("src", "clients"), "Api");
+
+        Assert.Equal(Path.Combine("src", "clients", "Api.ts"), result);
+    }
+
+    [Fact]
+    public void EffectiveLanguage_DefaultsToTypeScript_WhenOutputIsGiven()
+    {
+        Assert.Equal("typescript", new OpenApiCommand.Settings { Source = "spec.json", Output = "api.ts" }.EffectiveLanguage);
+        Assert.Equal("typescript", new OpenApiCommand.Settings { Source = "spec.json", Language = "typescript", Output = "api.ts" }.EffectiveLanguage);
+        Assert.Null(new OpenApiCommand.Settings { Source = "spec.json" }.EffectiveLanguage);
+    }
+
+    [Fact]
+    public void Run_ReportsMissingSourceFile_ToStderr_EvenWhenItsNameLooksLikeMarkup()
     {
         // "[1]" is a Spectre style tag in markup; the error must be printed as text, not parsed.
         string source = Path.Combine(Path.GetTempPath(), "catalyst-missing", "api[1].json");
 
-        (int exitCode, string output) = RunCommand("--source", source);
+        CommandRun run = RunCommand("--source", source);
 
-        Assert.Equal(1, exitCode);
-        Assert.Contains("File not found", output);
-        Assert.Contains("api[1].json", output);
+        Assert.Equal(1, run.ExitCode);
+        Assert.Contains("File not found", run.Error);
+        Assert.Contains("api[1].json", run.Error);
+        Assert.DoesNotContain("File not found", run.Output);
     }
 
-    private static (int ExitCode, string Output) RunCommand(params string[] arguments)
+    [Fact]
+    public void Run_ReportsWhatIsWrongWithAMalformedSpec()
     {
-        StringWriter writer = new();
-        IAnsiConsole previous = AnsiConsole.Console;
+        string dir = CreateTempDirectory();
+        try
+        {
+            string spec = Path.Combine(dir, "broken.json");
+            File.WriteAllText(spec, "{ \"openapi\": \"3.0.1\", \"info\": ");
+
+            CommandRun run = RunCommand("--source", spec);
+
+            Assert.Equal(1, run.ExitCode);
+            Assert.Contains("Failed to parse OpenAPI document", run.Error);
+            Assert.DoesNotContain("empty result", run.Error);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Run_GeneratesTypeScript_WhenOnlyOutputIsGiven_AndLeavesUnchangedFilesAlone()
+    {
+        string dir = CreateTempDirectory();
+        try
+        {
+            string spec = Path.Combine(dir, "spec.json");
+            string output = Path.Combine(dir, "out", "api.ts");
+            File.Copy(TestPaths.SpecPath("minimal"), spec);
+
+            CommandRun first = RunCommand("--source", spec, "--output", output);
+
+            Assert.Equal(0, first.ExitCode);
+            Assert.Contains("TypeScript generated", first.Output);
+            Assert.True(File.Exists(output));
+
+            // An identical regeneration must not rewrite the file (no timestamp churn).
+            DateTime old = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(output, old);
+
+            CommandRun second = RunCommand("--source", spec, "--output", output);
+
+            Assert.Equal(0, second.ExitCode);
+            Assert.Contains("Unchanged since the last generation", second.Output);
+            Assert.Equal(old, File.GetLastWriteTimeUtc(output));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// The Syncfully Workbench finds the generated file with this exact pattern (electron/main/catalyst.ts).
+    /// The line must match, and carry nothing but the path, whether or not the file was rewritten.
+    /// </summary>
+    [Fact]
+    public void Run_SuccessLine_MatchesTheWorkbenchContract_WhenWrittenAndWhenUnchanged()
+    {
+        Regex workbench = new(@"^[ \t]*TypeScript generated:[ \t]*(.+?)[ \t]*$", RegexOptions.Multiline);
+        string dir = CreateTempDirectory();
+        try
+        {
+            string spec = Path.Combine(dir, "spec.json");
+
+            // Longer than 200 characters (but under Windows MAX_PATH) and written with mixed separators:
+            // the line must not wrap, and the path must come back normalised.
+            string nested = string.Join('/', Enumerable.Repeat("nested-directory-segment", 5));
+            string output = Path.GetFullPath($"{dir}/{nested}{Path.DirectorySeparatorChar}api.ts");
+            Assert.InRange(output.Length, 201, 259);
+            File.Copy(TestPaths.SpecPath("minimal"), spec);
+
+            string written = RunCommand(80, "--source", spec, "--output", $"{dir}/{nested}{Path.DirectorySeparatorChar}api.ts").Output;
+            string unchanged = RunCommand(80, "--source", spec, "--output", $"{dir}/{nested}{Path.DirectorySeparatorChar}api.ts").Output;
+
+            Assert.DoesNotContain("Unchanged since", written);
+            Assert.Contains("Unchanged since", unchanged);
+            foreach (string stdout in new[] { written, unchanged })
+            {
+                // JavaScript ends a line at CR for $, .NET does not: compare with LF line ends.
+                Match match = workbench.Match(stdout.Replace("\r\n", "\n"));
+                Assert.True(match.Success, stdout);
+                Assert.Equal(output, match.Groups[1].Value);
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Run_SendsWarningsToStderr_AndResultsToStdout()
+    {
+        string dir = CreateTempDirectory();
+        try
+        {
+            string spec = Path.Combine(dir, "spec.json");
+            File.Copy(TestPaths.SpecPath("edge-cases"), spec);
+
+            CommandRun run = RunCommand("--source", spec, "--output", Path.Combine(dir, "api.ts"));
+
+            Assert.Equal(0, run.ExitCode);
+            Assert.Contains("TypeScript generated", run.Output);
+            Assert.DoesNotContain("Warning:", run.Output);
+            Assert.Contains("Warning:", run.Error);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ReportsCancelled_WithExitCode130_NotATimeout()
+    {
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
+
+        (int exitCode, string error) = await CapturingErrorAsync(() =>
+            OpenApiCommand.RunAsync(new OpenApiCommand.Settings { Source = "http://127.0.0.1:1/openapi.json" }, cancellation.Token));
+
+        Assert.Equal(130, exitCode);
+        Assert.Contains("Cancelled.", error);
+        Assert.DoesNotContain("timed out", error);
+    }
+
+    private static string CreateTempDirectory()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "catalyst-command-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    private sealed record CommandRun(int ExitCode, string Output, string Error);
+
+    private static IAnsiConsole CreateConsole(StringWriter writer, int width = 1000)
+    {
         IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
         {
             Ansi = AnsiSupport.No,
             ColorSystem = ColorSystemSupport.NoColors,
             Out = new AnsiConsoleOutput(writer),
         });
-        console.Profile.Width = 1000;
+        console.Profile.Width = width;
+        return console;
+    }
 
-        AnsiConsole.Console = console;
+    private static async Task<(int ExitCode, string Error)> CapturingErrorAsync(Func<Task<int>> action)
+    {
+        StringWriter error = new();
+        IAnsiConsole previous = Terminal.Error;
+        Terminal.Error = CreateConsole(error);
+        try
+        {
+            int exitCode = await action();
+            return (exitCode, error.ToString());
+        }
+        finally
+        {
+            Terminal.Error = previous;
+        }
+    }
+
+    private static CommandRun RunCommand(params string[] arguments) => RunCommand(1000, arguments);
+
+    private static CommandRun RunCommand(int width, params string[] arguments)
+    {
+        StringWriter output = new();
+        StringWriter error = new();
+        IAnsiConsole previousOut = AnsiConsole.Console;
+        IAnsiConsole previousError = Terminal.Error;
+
+        AnsiConsole.Console = CreateConsole(output, width);
+        Terminal.Error = CreateConsole(error, width);
         try
         {
             CommandApp app = new();
@@ -187,11 +368,12 @@ public class OpenApiCommandTests
             });
 
             int exitCode = app.Run(["openapi", .. arguments]);
-            return (exitCode, writer.ToString());
+            return new CommandRun(exitCode, output.ToString(), error.ToString());
         }
         finally
         {
-            AnsiConsole.Console = previous;
+            AnsiConsole.Console = previousOut;
+            Terminal.Error = previousError;
         }
     }
 }
