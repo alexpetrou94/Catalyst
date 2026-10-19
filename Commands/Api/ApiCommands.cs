@@ -97,6 +97,56 @@ internal sealed class ApiShowCommand : AsyncCommand<ApiShowCommand.Settings>
     }
 }
 
+internal sealed class ApiDiffCommand : AsyncCommand<ApiDiffCommand.Settings>
+{
+    public sealed class Settings : ApiSettings
+    {
+        [CommandOption("--base <BASE>")]
+        [Description("The old spec to compare with: a path, a URL, or git:<ref>:<path> (read with git show). With a file source, git:<ref> alone means the same file at that ref, e.g. git:HEAD.")]
+        public string? Base { get; init; }
+
+        [CommandOption("--fail-on-breaking")]
+        [Description("Exit with code 1 when there is any breaking change (the default exit code is 0).")]
+        public bool FailOnBreaking { get; init; }
+
+        public override Spectre.Console.ValidationResult Validate()
+        {
+            return string.IsNullOrWhiteSpace(Base) ? Spectre.Console.ValidationResult.Error("The --base option is required: the old spec to compare with.") : base.Validate();
+        }
+    }
+
+    protected override Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
+    {
+        return ApiCommandRunner.RunAsync(settings, "api diff", async (model, target, token) =>
+        {
+            (string? content, string? displayPath, Issue? problem) = await ApiBaseLoader.LoadAsync(settings.Base!, target, settings.Insecure, token).ConfigureAwait(false);
+            if (content == null)
+            {
+                return ApiReport.Failure("api diff", problem!.Code, problem.Message);
+            }
+
+            (ClientModel? baseModel, Issue? baseProblem) = ApiCommandRunner.BuildModel(content, displayPath!, target);
+            if (baseModel == null)
+            {
+                return ApiReport.Failure("api diff", baseProblem!.Code, "Base spec: " + baseProblem.Message);
+            }
+
+            List<ApiChange> changes = ApiDiff.Compare(baseModel, model);
+            int breaking = changes.Count(c => c.Severity == ChangeSeverity.Breaking);
+            ApiReport report = new() { Command = "api diff", Changes = changes, Summary = new DiffSummary(breaking, changes.Count - breaking) };
+            report.Complete();
+
+            if (settings.FailOnBreaking && breaking > 0)
+            {
+                report.Success = false;
+                report.ExitCode = 1;
+            }
+
+            return report;
+        }, cancellationToken);
+    }
+}
+
 internal sealed class ApiSchemaCommand : AsyncCommand<ApiSchemaCommand.Settings>
 {
     public sealed class Settings : ApiSettings
@@ -133,7 +183,13 @@ internal sealed class ApiSchemaCommand : AsyncCommand<ApiSchemaCommand.Settings>
 /// <summary>The flow every <c>api</c> command shares: pick the spec, build the client model, answer, print.</summary>
 internal static class ApiCommandRunner
 {
-    public static async Task<int> RunAsync(ApiSettings settings, string command, Func<ClientModel, ApiReport> answer, CancellationToken cancellationToken)
+    public static Task<int> RunAsync(ApiSettings settings, string command, Func<ClientModel, ApiReport> answer, CancellationToken cancellationToken)
+    {
+        return RunAsync(settings, command, (model, _, _) => Task.FromResult(answer(model)), cancellationToken);
+    }
+
+    /// <summary>Like the synchronous overload, for answers that need the target (to find a base spec) or do I/O.</summary>
+    public static async Task<int> RunAsync(ApiSettings settings, string command, Func<ClientModel, ApiTarget, CancellationToken, Task<ApiReport>> answer, CancellationToken cancellationToken)
     {
         ApiReport report;
 
@@ -150,7 +206,7 @@ internal static class ApiCommandRunner
         return report.ExitCode;
     }
 
-    private static async Task<ApiReport> BuildReportAsync(ApiSettings settings, string command, Func<ClientModel, ApiReport> answer, CancellationToken cancellationToken)
+    private static async Task<ApiReport> BuildReportAsync(ApiSettings settings, string command, Func<ClientModel, ApiTarget, CancellationToken, Task<ApiReport>> answer, CancellationToken cancellationToken)
     {
         (ApiTarget? target, Issue? problem) = ResolveTarget(settings);
         if (target == null)
@@ -164,10 +220,22 @@ internal static class ApiCommandRunner
             return ApiReport.Failure(command, SourceResolver.ClassifyFailure(resolved.ErrorMessage), resolved.ErrorMessage ?? "Unknown error");
         }
 
-        Result<OpenApiParseResult> parsed = OpenApiParser.Parse(resolved.Value!.Content, resolved.Value!.DisplayPath);
+        (ClientModel? model, Issue? modelProblem) = BuildModel(resolved.Value!.Content, resolved.Value!.DisplayPath, target);
+        if (model == null)
+        {
+            return ApiReport.Failure(command, modelProblem!.Code, modelProblem.Message);
+        }
+
+        return await answer(model, target, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Parses a spec and generates the client model for it; the same pipeline for the new and the base spec.</summary>
+    internal static (ClientModel? Model, Issue? Problem) BuildModel(string content, string displayPath, ApiTarget target)
+    {
+        Result<OpenApiParseResult> parsed = OpenApiParser.Parse(content, displayPath);
         if (!parsed.IsSuccess)
         {
-            return ApiReport.Failure(command, IssueCodes.ParseFailed, parsed.ErrorMessage ?? "Unknown error");
+            return (null, new Issue(IssueCodes.ParseFailed, parsed.ErrorMessage ?? "Unknown error"));
         }
 
         TypeScriptGenerator generator = new(parsed.Value!.Document, target.ClassName, target.SkipPaths);
@@ -177,10 +245,10 @@ internal static class ApiCommandRunner
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return ApiReport.Failure(command, IssueCodes.GenerationFailed, ex.Message);
+            return (null, new Issue(IssueCodes.GenerationFailed, ex.Message));
         }
 
-        return answer(generator.Model);
+        return (generator.Model, null);
     }
 
     /// <summary>

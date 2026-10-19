@@ -41,7 +41,15 @@ internal sealed class TypeScriptGenerator
     /// <summary>Collects the declared type names a piece of generation refers to (see CaptureReferences).</summary>
     private readonly Stack<List<string>> _referenceScopes = new();
 
-    private readonly List<(string Name, string Kind, List<string> DependsOn)> _declarations = [];
+    private readonly List<DeclarationRecord> _declarations = [];
+
+    /// <summary>A declared type as the generator saw it: what the model keeps besides the rendered text.</summary>
+    private sealed record DeclarationRecord(string Name, string Kind, List<string> DependsOn)
+    {
+        public List<TypeMember> Members { get; init; } = [];
+        public string? AliasType { get; init; }
+        public List<string> Values { get; init; } = [];
+    }
 
     public TypeScriptGenerator(
         OpenApiDocument document,
@@ -245,12 +253,13 @@ internal sealed class TypeScriptGenerator
             if (IsStringEnum(schema))
             {
                 BuildEnumFromSchema(file, typeName, schema);
-                _declarations.Add((typeName, "enum", []));
+                _declarations.Add(new DeclarationRecord(typeName, "enum", []) { Values = EnumStringValues(schema) });
             }
             else
             {
-                BuildTypeAlias(file, typeName, schema, MapEnum(schema));
-                _declarations.Add((typeName, "type", []));
+                string literalUnion = MapEnum(schema);
+                BuildTypeAlias(file, typeName, schema, literalUnion);
+                _declarations.Add(new DeclarationRecord(typeName, "type", []) { AliasType = literalUnion });
             }
 
             return;
@@ -266,7 +275,7 @@ internal sealed class TypeScriptGenerator
         string resolved = string.Empty;
         List<string> dependsOn = CaptureReferences(() => resolved = ResolveType(file, typeName, schema));
         BuildTypeAlias(file, typeName, schema, resolved);
-        _declarations.Add((typeName, "type", dependsOn));
+        _declarations.Add(new DeclarationRecord(typeName, "type", dependsOn) { AliasType = resolved });
     }
 
     private static void BuildTypeAlias(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema, string type)
@@ -283,6 +292,7 @@ internal sealed class TypeScriptGenerator
 
     private void BuildInterfaceFromSchema(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema)
     {
+        List<TypeMember> members = [];
         List<string> dependsOn = CaptureReferences(() =>
         {
             InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder = file.Interface(typeName).Export();
@@ -297,14 +307,15 @@ internal sealed class TypeScriptGenerator
                 foreach (KeyValuePair<string, IOpenApiSchema> property in schema.Properties)
                 {
                     bool isRequired = schema.Required?.Contains(property.Key) ?? false;
-                    BuildInterfaceProperty(file, interfaceBuilder, typeName, property.Key, property.Value, isRequired);
+                    string propertyType = BuildInterfaceProperty(file, interfaceBuilder, typeName, property.Key, property.Value, isRequired);
+                    members.Add(new TypeMember(property.Key, propertyType, isRequired));
                 }
             }
 
             interfaceBuilder.EndInterface();
         });
 
-        _declarations.Add((typeName, "interface", dependsOn));
+        _declarations.Add(new DeclarationRecord(typeName, "interface", dependsOn) { Members = members });
     }
 
     private static void BuildEnumFromSchema(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema)
@@ -344,6 +355,14 @@ internal sealed class TypeScriptGenerator
         enumBuilder.EndEnum();
     }
 
+    private static List<string> EnumStringValues(IOpenApiSchema schema)
+    {
+        return (schema.Enum ?? [])
+            .Where(member => member is not null && !JsonNullSentinel.IsJsonNullSentinel(member) && member.GetValueKind() == JsonValueKind.String)
+            .Select(member => member!.GetValue<string>())
+            .ToList();
+    }
+
     /// <summary>A string enum has at least one member and every non-null member is a string.</summary>
     private static bool IsStringEnum(IOpenApiSchema schema)
     {
@@ -367,7 +386,7 @@ internal sealed class TypeScriptGenerator
         return hasString;
     }
 
-    private void BuildInterfaceProperty(FileScope<TypeScript> file, InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder, string parentName, string name, IOpenApiSchema schema, bool isRequired)
+    private string BuildInterfaceProperty(FileScope<TypeScript> file, InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder, string parentName, string name, IOpenApiSchema schema, bool isRequired)
     {
         string propertyType = ResolveType(file, parentName + TypeScriptNaming.ToPascalCase(name), schema);
 
@@ -379,6 +398,7 @@ internal sealed class TypeScriptGenerator
         }
 
         propertyBuilder.EndProperty();
+        return propertyType;
     }
 
     private void BuildOperationTypeInterfaces(FileScope<TypeScript> file, List<OperationInfo> operations)
@@ -1111,7 +1131,12 @@ internal sealed class TypeScriptGenerator
                 declaration.Kind,
                 componentOf.GetValueOrDefault(declaration.Name),
                 rendered[declaration.Name],
-                declaration.DependsOn))
+                declaration.DependsOn)
+            {
+                Members = declaration.Members,
+                AliasType = declaration.AliasType,
+                Values = declaration.Values,
+            })
             .ToList();
 
         return new ClientModel(operations.Select(ToApiOperation).ToList(), types);

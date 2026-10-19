@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Catalyst.Common.Models;
 
 /// <summary>One parameter of a generated method (path or query), in the order of the generated signature.</summary>
@@ -32,7 +34,22 @@ internal sealed record ApiOperation(
 }
 
 /// <summary>A named type of the generated file with its rendered TypeScript and the declared types it uses.</summary>
-internal sealed record TypeDeclaration(string Name, string Kind, string? ComponentName, string Declaration, List<string> DependsOn);
+internal sealed record TypeDeclaration(string Name, string Kind, string? ComponentName, string Declaration, List<string> DependsOn)
+{
+    /// <summary>Interface properties (name as in the spec, TypeScript type, required); for comparing versions of a type.</summary>
+    [JsonIgnore]
+    public List<TypeMember> Members { get; init; } = [];
+
+    /// <summary>The right-hand side of a type alias.</summary>
+    [JsonIgnore]
+    public string? AliasType { get; init; }
+
+    /// <summary>The values of a string enum.</summary>
+    [JsonIgnore]
+    public List<string> Values { get; init; } = [];
+}
+
+internal sealed record TypeMember(string Name, string Type, bool Required);
 
 /// <summary>What the generator knows about the client it renders: the operations and the declared types.</summary>
 internal sealed record ClientModel(List<ApiOperation> Operations, List<TypeDeclaration> Types);

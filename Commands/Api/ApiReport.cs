@@ -7,6 +7,8 @@ using Catalyst.Common.Services;
 namespace Catalyst.Commands.Api;
 
 /// <summary>One line of <c>api list</c>.</summary>
+internal sealed record DiffSummary(int Breaking, int NonBreaking);
+
 internal sealed record ApiListItem(string Method, string Path, string? OperationId, string? Summary, bool Deprecated, List<string> Tags, string Call);
 
 /// <summary>
@@ -34,6 +36,12 @@ internal sealed class ApiReport
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<TypeDeclaration>? Types { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ApiChange>? Changes { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DiffSummary? Summary { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? Suggestions { get; set; }
@@ -103,6 +111,10 @@ internal sealed class ApiReport
         {
             WriteOperation(Operation);
         }
+        else if (Changes != null)
+        {
+            WriteChanges(Changes);
+        }
 
         if (Types is { Count: > 0 })
         {
@@ -122,6 +134,48 @@ internal sealed class ApiReport
                 Terminal.WriteRaw(Types[i].Declaration);
             }
         }
+    }
+
+    private static void WriteChanges(List<ApiChange> changes)
+    {
+        if (changes.Count == 0)
+        {
+            Terminal.WriteRaw("No changes.");
+            return;
+        }
+
+        List<ApiChange> breaking = changes.Where(c => c.Severity == ChangeSeverity.Breaking).ToList();
+        List<ApiChange> other = changes.Where(c => c.Severity != ChangeSeverity.Breaking).ToList();
+
+        if (breaking.Count > 0)
+        {
+            Terminal.WriteRaw($"Breaking changes ({breaking.Count})");
+            foreach (ApiChange change in breaking)
+            {
+                Terminal.WriteRaw(ChangeLine("BREAKING", change));
+            }
+        }
+
+        if (other.Count > 0)
+        {
+            Terminal.WriteRaw($"Other changes ({other.Count})");
+            foreach (ApiChange change in other)
+            {
+                Terminal.WriteRaw(ChangeLine("change", change));
+            }
+        }
+
+        Terminal.WriteRaw(string.Empty);
+        Terminal.WriteRaw($"{breaking.Count} breaking, {other.Count} non-breaking change(s).");
+    }
+
+    private static string ChangeLine(string label, ApiChange change)
+    {
+        string subject = change.Operation != null
+            ? $"{change.Operation.Method} {change.Operation.Path}  {change.Operation.Call}"
+            : $"type {change.Type}";
+
+        return $"{label.PadRight(8)}  {subject}: {change.Message}";
     }
 
     private static void WriteList(List<ApiListItem> items)

@@ -27,6 +27,7 @@ internal static class IssueCodes
     public const string OperationNotFound = "OPERATION_NOT_FOUND";
     public const string OperationAmbiguous = "OPERATION_AMBIGUOUS";
     public const string SchemaNotFound = "SCHEMA_NOT_FOUND";
+    public const string BaseNotFound = "BASE_NOT_FOUND";
 
     // Warnings
     public const string SpecValidationErrors = "SPEC_VALIDATION_ERRORS";

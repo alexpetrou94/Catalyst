@@ -23,7 +23,11 @@ internal static class AppConfiguration
                 .WithDescription("Shows one operation: the exact generated call, its parameters, body and response, and the TypeScript declarations of the types it uses.")
                 .WithExample("api", "show", "GET /pets/{id}")
                 .WithExample("api", "show", "client.get.petById", "--no-types");
-            api.AddCommand<ApiSchemaCommand>("schema")
+            api.AddCommand<ApiDiffCommand>("diff")
+            .WithDescription("Reports breaking and non-breaking changes between an old spec (--base) and the current one, in terms of the generated client.")
+            .WithExample("api", "diff", "--base", "./previous-openapi.json", "--source", "./openapi.json")
+            .WithExample("api", "diff", "--client", "PetStore", "--base", "git:HEAD", "--fail-on-breaking");
+        api.AddCommand<ApiSchemaCommand>("schema")
                 .WithDescription("Shows the TypeScript declaration of one generated type and, by default, every type it references.")
                 .WithExample("api", "schema", "Pet")
                 .WithExample("api", "schema", "Pet", "--depth", "1");

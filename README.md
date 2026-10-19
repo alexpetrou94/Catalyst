@@ -385,7 +385,102 @@ edit it by hand and do not read the spec or the whole generated file to find an 
 - Look up one type: `catalyst api schema <Name>`.
 - After the backend API changes, regenerate with `catalyst gen openapi`. To verify the client is current without
   writing anything, run `catalyst gen openapi --check` (exit code 1 means out of date).
+- After changing a backend endpoint, run `catalyst api diff --client <name> --base git:HEAD` to see what breaks for
+  the frontend before regenerating (`--fail-on-breaking` turns breaking changes into exit code 1).
 ```
+
+## Detecting breaking API changes
+
+`catalyst api diff` compares an old spec (`--base`) with the current one and reports what changes **for the
+generated client**: call names, parameter lists and TypeScript types, not raw spec differences. Both specs go
+through the same pipeline (same client name, same skip paths); the new spec is chosen like for the other `api`
+commands (`--source`, `--client`, or the only configured client).
+
+`--base` is a path, a URL, or a file at a git ref:
+
+```bash
+# an old copy of the spec
+catalyst api diff --base ./previous-openapi.json --source ./openapi.json
+
+# after editing the backend: compare the configured client's source with what is committed
+catalyst api diff --client PetStore --base git:HEAD
+
+# a different file or ref: git show <ref>:<path>, the path relative to the repository root
+catalyst api diff --client PetStore --base git:origin/main:backend/openapi.json
+
+# CI: fail the build on breaking changes
+catalyst api diff --client PetStore --base git:origin/main --fail-on-breaking
+```
+
+`git:<ref>` without a path (with a local file source) means the same file at that ref. If git fails or is not
+installed, the result is `BASE_NOT_FOUND`.
+
+```text
+Breaking changes (2)
+BREAKING  GET /pets/{id}  client.get.petById: parameter "includeOwner" added as required
+BREAKING  type Pet: property "tag" removed
+Other changes (1)
+change    POST /pets  client.post.pets: added
+
+2 breaking, 1 non-breaking change(s).
+```
+
+The exit code is `0` even with breaking changes unless you pass `--fail-on-breaking` (then `1`). With
+`--json` the envelope of the other `api` commands carries `changes` and `summary`:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "api diff",
+  "success": true,
+  "exitCode": 0,
+  "changes": [
+    {
+      "severity": "breaking",
+      "kind": "OPERATION_REMOVED",
+      "operation": { "method": "GET", "path": "/ping", "call": "client.get.ping" },
+      "type": null,
+      "member": null,
+      "before": "client.get.ping",
+      "after": null,
+      "message": "removed"
+    }
+  ],
+  "summary": { "breaking": 1, "nonBreaking": 0 },
+  "error": null
+}
+```
+
+`severity` is `breaking` or `non-breaking`; `operation` is set for operation changes and `type` for type changes;
+`member` names the parameter, property or union member concerned; `before` and `after` hold the old and new value.
+Operations are matched by method and path (parameter names ignored); an operation whose path changed but whose
+operationId did not is reported as moved. Types are matched by their generated name. Type strings are compared as
+text, so a renamed type shows up as a changed type plus a removed and an added type.
+
+| Kind | Severity | Meaning |
+| --- | --- | --- |
+| `OPERATION_REMOVED` | breaking | The operation is gone |
+| `OPERATION_ADDED` | non-breaking | A new operation |
+| `OPERATION_MOVED` | non-breaking if the call and signature are unchanged, else breaking | Same operationId, new path |
+| `OPERATION_CALL_CHANGED` | breaking | The generated call name (`client.get.x`) changed |
+| `PARAMETER_ADDED_REQUIRED` / `PARAMETER_ADDED_OPTIONAL` | breaking / non-breaking | A query or path parameter was added |
+| `PARAMETER_REMOVED` | breaking | A parameter was removed |
+| `PARAMETER_BECAME_REQUIRED` / `PARAMETER_BECAME_OPTIONAL` | breaking / non-breaking | Requiredness changed |
+| `PARAMETER_TYPE_CHANGED` | breaking | The TypeScript type of a parameter changed |
+| `PARAMETER_MOVED` | breaking | Arguments are positional, so a parameter in another position breaks callers |
+| `BODY_ADDED` / `BODY_REMOVED` / `BODY_TYPE_CHANGED` | breaking | The generated body argument is always mandatory, so any new body breaks calls |
+| `BODY_MEDIA_TYPE_CHANGED` | non-breaking | Same TypeScript type, other media type (the client encodes it) |
+| `RESPONSE_TYPE_CHANGED` | breaking | The type of the successful response changed |
+| `TYPE_REMOVED` / `TYPE_ADDED` | breaking / non-breaking | A generated type disappeared or appeared |
+| `TYPE_KIND_CHANGED` | breaking | Interface, type alias and enum changed into one another |
+| `TYPE_ALIAS_CHANGED` | breaking | A type alias now means something else |
+| `TYPE_PROPERTY_REMOVED` | breaking | An interface lost a property |
+| `TYPE_PROPERTY_ADDED_REQUIRED` / `TYPE_PROPERTY_ADDED_OPTIONAL` | breaking / non-breaking | An interface gained a property |
+| `TYPE_PROPERTY_TYPE_CHANGED` | breaking | A property has another TypeScript type |
+| `TYPE_PROPERTY_BECAME_REQUIRED` / `TYPE_PROPERTY_BECAME_OPTIONAL` | breaking | Either direction can break strict TypeScript (constructing without it, or reading it) |
+| `TYPE_MEMBER_REMOVED` / `TYPE_MEMBER_ADDED` | breaking / non-breaking | An enum, literal union or union lost or gained a member (also for a property whose type is a literal union) |
+
+Errors use the usual envelope; the extra code is `BASE_NOT_FOUND`.
 
 ## Releases
 
