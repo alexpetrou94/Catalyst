@@ -28,11 +28,13 @@ internal static class Terminal
 
     /// <summary>
     /// Writes "label text" as one line. The text goes straight to the console's writer, so Spectre cannot
-    /// wrap it, however long a path in it is. Only the label is colored, and only when the console supports it.
+    /// wrap it, however long a path in it is. The label is colored only when the stream is a real terminal that
+    /// supports it: Spectre also turns ANSI on for redirected output when it detects CI (GitHub Actions), and escape
+    /// codes there would break tools that parse these lines. Consoles writing to anything but the terminal count as redirected.
     /// </summary>
     public static void WriteLine(IAnsiConsole console, string label, string text, AnsiColor color)
     {
-        string styledLabel = console.Profile.Capabilities.Ansi ? $"\u001b[{(int)color}m{label}\u001b[0m" : label;
+        string styledLabel = console.Profile.Capabilities.Ansi && console.Profile.Out.IsTerminal ? $"\u001b[{(int)color}m{label}\u001b[0m" : label;
         console.Profile.Out.Writer.WriteLine($"{styledLabel} {text}");
     }
 

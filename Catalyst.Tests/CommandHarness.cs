@@ -13,12 +13,12 @@ internal sealed record CommandRun(int ExitCode, string Output, string Error);
 /// </summary>
 internal static class CommandHarness
 {
-    public static IAnsiConsole CreateConsole(StringWriter writer, int width = 1000)
+    public static IAnsiConsole CreateConsole(StringWriter writer, int width = 1000, bool ansi = false)
     {
         IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
         {
-            Ansi = AnsiSupport.No,
-            ColorSystem = ColorSystemSupport.NoColors,
+            Ansi = ansi ? AnsiSupport.Yes : AnsiSupport.No,
+            ColorSystem = ansi ? ColorSystemSupport.Standard : ColorSystemSupport.NoColors,
             Out = new AnsiConsoleOutput(writer),
         });
         console.Profile.Width = width;
@@ -26,15 +26,18 @@ internal static class CommandHarness
     }
 
     /// <summary>Runs the CLI with the given arguments, for example "gen", "openapi", "--source", ...</summary>
-    public static CommandRun Run(int width, params string[] arguments)
+    public static CommandRun Run(int width, params string[] arguments) => Run(width, ansi: false, arguments);
+
+    /// <summary>With ansi, the consoles report ANSI support although they are not terminals, as Spectre does on GitHub Actions.</summary>
+    public static CommandRun Run(int width, bool ansi, params string[] arguments)
     {
         StringWriter output = new();
         StringWriter error = new();
         IAnsiConsole previousOut = AnsiConsole.Console;
         IAnsiConsole previousError = Terminal.Error;
 
-        AnsiConsole.Console = CreateConsole(output, width);
-        Terminal.Error = CreateConsole(error, width);
+        AnsiConsole.Console = CreateConsole(output, width, ansi);
+        Terminal.Error = CreateConsole(error, width, ansi);
         try
         {
             CommandApp app = new();

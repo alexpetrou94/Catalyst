@@ -174,9 +174,14 @@ describe("responses", () => {
 });
 
 describe("timeouts", () => {
-    // A fetch that never answers on its own and rejects when its signal aborts.
+    // A fetch that never answers on its own and rejects when its signal aborts. Like a real pending request it keeps the
+    // event loop alive (AbortSignal.timeout's own timer is unref'd, so without this node:test sees the loop drain and cancels the test).
     const hang = (url, init) => new Promise((resolve, reject) => {
-        init.signal?.addEventListener("abort", () => reject(init.signal.reason));
+        const keepAlive = setInterval(() => { }, 1000);
+        init.signal?.addEventListener("abort", () => {
+            clearInterval(keepAlive);
+            reject(init.signal.reason);
+        });
     });
 
     it("aborts a hanging request after timeoutMs", async () => {

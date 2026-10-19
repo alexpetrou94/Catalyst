@@ -252,7 +252,15 @@ public class OpenApiCommandTests
 
             // Longer than 200 characters (but under Windows MAX_PATH) and written with mixed separators:
             // the line must not wrap, and the path must come back normalised.
-            string nested = string.Join('/', Enumerable.Repeat("nested-directory-segment", 5));
+            // Segments are added until the full path passes 200 characters, whatever the length of the temp directory.
+            const string segment = "nested-directory-segment";
+            int segments = 1;
+            while (Path.GetFullPath($"{dir}/{string.Join('/', Enumerable.Repeat(segment, segments))}{Path.DirectorySeparatorChar}api.ts").Length <= 200)
+            {
+                segments++;
+            }
+
+            string nested = string.Join('/', Enumerable.Repeat(segment, segments));
             string output = Path.GetFullPath($"{dir}/{nested}{Path.DirectorySeparatorChar}api.ts");
             Assert.InRange(output.Length, 201, 259);
             File.Copy(TestPaths.SpecPath("minimal"), spec);
@@ -268,6 +276,43 @@ public class OpenApiCommandTests
                 Match match = workbench.Match(stdout.Replace("\r\n", "\n"));
                 Assert.True(match.Success, stdout);
                 Assert.Equal(output, match.Groups[1].Value);
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// On GitHub Actions Spectre reports ANSI support even though the output is redirected. The lines that tools parse
+    /// must stay free of escape codes then, or "TypeScript generated:" and the other labels would no longer match.
+    /// </summary>
+    [Fact]
+    public void Run_KeepsEscapeCodesOutOfTheParsedLines_EvenWhenTheConsoleReportsAnsi()
+    {
+        string dir = CreateTempDirectory();
+        try
+        {
+            string spec = Path.Combine(dir, "spec.json");
+            string output = Path.Combine(dir, "api.ts");
+            File.Copy(TestPaths.SpecPath("edge-cases"), spec);
+
+            CommandRun generated = CommandHarness.Run(1000, ansi: true, ["gen", "openapi", "--source", spec, "--output", output]);
+            File.WriteAllText(output, "// old");
+            CommandRun stale = CommandHarness.Run(1000, ansi: true, ["gen", "openapi", "--source", spec, "--output", output, "--check"]);
+            CommandRun failed = CommandHarness.Run(1000, ansi: true, ["gen", "openapi", "--source", Path.Combine(dir, "missing.json")]);
+
+            Assert.Contains("TypeScript generated: " + output, generated.Output);
+            Assert.Contains("Warning: ", generated.Error);
+            Assert.Contains("Out of date: " + output, stale.Output);
+            Assert.Contains("Error: File not found", failed.Error);
+            foreach (string text in new[] { generated.Output, generated.Error, stale.Output, failed.Error })
+            {
+                foreach (string line in text.Split('\n').Where(l => l.Contains("TypeScript generated:") || l.Contains("Out of date:") || l.Contains("Warning:") || l.Contains("Error:")))
+                {
+                    Assert.DoesNotContain('\u001b', line);
+                }
             }
         }
         finally
