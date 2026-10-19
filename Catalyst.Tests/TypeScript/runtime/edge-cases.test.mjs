@@ -201,7 +201,7 @@ describe("multipart bodies", () => {
     it("builds FormData with files, repeated array entries and JSON objects, and leaves the content-type to fetch", async () => {
         await withFetch(pending, async (calls) => {
             const file = new Blob(["abc"], { type: "text/plain" });
-            await createClient().post.CreateUpload({ file, tags: ["a", "b"], meta: { id: "1" }, note: undefined });
+            await createClient().post.createUpload({ file, tags: ["a", "b"], meta: { id: "1" }, note: undefined });
 
             const form = calls[0].init.body;
             assert.ok(form instanceof FormData);
@@ -217,7 +217,7 @@ describe("multipart bodies", () => {
         await withFetch(pending, async (calls) => {
             const form = new FormData();
             form.append("file", new Blob(["x"]));
-            await createClient().post.CreateUpload(form);
+            await createClient().post.createUpload(form);
 
             assert.equal(calls[0].init.body, form);
         });
@@ -229,7 +229,7 @@ describe("other body encodings", () => {
 
     it("sends a urlencoded body with its content-type", async () => {
         await withFetch(pending, async (calls) => {
-            await createClient().post.CreateLogin({ username: "a b", scopes: ["x", "y"], remember: true });
+            await createClient().post.createLogin({ username: "a b", scopes: ["x", "y"], remember: true });
 
             assert.equal(String(calls[0].init.body), "username=a+b&scopes=x&scopes=y&remember=true");
             assert.equal(calls[0].init.headers["Content-Type"], "application/x-www-form-urlencoded");

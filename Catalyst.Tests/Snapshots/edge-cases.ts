@@ -106,11 +106,11 @@ export interface EdgeCasesClient {
 export interface Post {
     items(body: Item_Dto, notify?: boolean, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Item_Dto>>;
 
-    PostcodeLookup(body: PostcodeLookupRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Id>>;
+    postcodeLookup(body: PostcodeLookupRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Id>>;
 
-    CreateUpload(body: CreateUploadRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    createUpload(body: CreateUploadRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    CreateLogin(body: CreateLoginRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    createLogin(body: CreateLoginRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 }
 
 export interface Get {
@@ -296,13 +296,13 @@ export function createClient(options: ClientOptions = {}): EdgeCasesClient {
             async items(body: Item_Dto, notify?: boolean, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Item_Dto>> {
                 return request<Item_Dto>('/items', 'post', { params: { notify }, body, headers, signal });
             },
-            async PostcodeLookup(body: PostcodeLookupRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Id>> {
+            async postcodeLookup(body: PostcodeLookupRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Id>> {
                 return request<Id>('/postcodes', 'post', { body, bodyType: "form", headers, signal });
             },
-            async CreateUpload(body: CreateUploadRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async createUpload(body: CreateUploadRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/uploads', 'post', { body, bodyType: "form", headers, signal });
             },
-            async CreateLogin(body: CreateLoginRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async createLogin(body: CreateLoginRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/forms/login', 'post', { body, bodyType: "urlencoded", headers, signal });
             },
         },

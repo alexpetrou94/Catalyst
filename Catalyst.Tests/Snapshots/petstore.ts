@@ -81,29 +81,29 @@ export interface SwaggerPetstoreOpenApi3_0Client {
 }
 
 export interface Put {
-    UpdatePet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>;
+    updatePet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>;
 
-    UpdateUser(username: string, body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    updateUser(username: string, body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 }
 
 export interface Post {
-    AddPet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>;
+    addPet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>;
 
-    UpdatePetWithForm(petId: number, name?: string, status?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>;
+    updatePetWithForm(petId: number, name?: string, status?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>;
 
-    UploadFile(petId: number, body: Blob, additionalMetadata?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ApiResponse>>;
+    uploadFile(petId: number, body: Blob, additionalMetadata?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ApiResponse>>;
 
-    PlaceOrder(body: Order, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Order>>;
+    placeOrder(body: Order, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Order>>;
 
-    CreateUser(body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>>;
+    createUser(body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>>;
 
-    CreateUsersWithListInput(body: User[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>>;
+    createUsersWithListInput(body: User[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>>;
 }
 
 export interface Get {
-    FindPetsByStatus(status: "available" | "pending" | "sold", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>>;
+    findPetsByStatus(status: "available" | "pending" | "sold", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>>;
 
-    FindPetsByTags(tags: string[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>>;
+    findPetsByTags(tags: string[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>>;
 
     petById(petId: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>;
 
@@ -111,9 +111,9 @@ export interface Get {
 
     orderById(orderId: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Order>>;
 
-    LoginUser(username?: string, password?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>>;
+    loginUser(username?: string, password?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>>;
 
-    LogoutUser(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    logoutUser(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
     userByName(username: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>>;
 }
@@ -230,13 +230,13 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
             /**
              * Update an existing pet.
              */
-            async UpdatePet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
+            async updatePet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
                 return request<Pet>('/pet', 'put', { body, headers, signal });
             },
             /**
              * Update user resource.
              */
-            async UpdateUser(username: string, body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async updateUser(username: string, body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>(`/user/${encodeURIComponent(username)}`, 'put', { body, headers, signal });
             },
         },
@@ -244,37 +244,37 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
             /**
              * Add a new pet to the store.
              */
-            async AddPet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
+            async addPet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
                 return request<Pet>('/pet', 'post', { body, headers, signal });
             },
             /**
              * Updates a pet in the store with form data.
              */
-            async UpdatePetWithForm(petId: number, name?: string, status?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
+            async updatePetWithForm(petId: number, name?: string, status?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
                 return request<Pet>(`/pet/${encodeURIComponent(petId)}`, 'post', { params: { name, status }, headers, signal });
             },
             /**
              * Uploads an image.
              */
-            async UploadFile(petId: number, body: Blob, additionalMetadata?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ApiResponse>> {
+            async uploadFile(petId: number, body: Blob, additionalMetadata?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ApiResponse>> {
                 return request<ApiResponse>(`/pet/${encodeURIComponent(petId)}/uploadImage`, 'post', { params: { additionalMetadata }, body, bodyType: "binary", headers, signal });
             },
             /**
              * Place an order for a pet.
              */
-            async PlaceOrder(body: Order, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Order>> {
+            async placeOrder(body: Order, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Order>> {
                 return request<Order>('/store/order', 'post', { body, headers, signal });
             },
             /**
              * Create user.
              */
-            async CreateUser(body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>> {
+            async createUser(body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>> {
                 return request<User>('/user', 'post', { body, headers, signal });
             },
             /**
              * Creates list of users with given input array.
              */
-            async CreateUsersWithListInput(body: User[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>> {
+            async createUsersWithListInput(body: User[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>> {
                 return request<User>('/user/createWithList', 'post', { body, headers, signal });
             },
         },
@@ -282,13 +282,13 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
             /**
              * Finds Pets by status.
              */
-            async FindPetsByStatus(status: "available" | "pending" | "sold", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>> {
+            async findPetsByStatus(status: "available" | "pending" | "sold", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>> {
                 return request<Pet[]>('/pet/findByStatus', 'get', { params: { status }, headers, signal });
             },
             /**
              * Finds Pets by tags.
              */
-            async FindPetsByTags(tags: string[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>> {
+            async findPetsByTags(tags: string[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>> {
                 return request<Pet[]>('/pet/findByTags', 'get', { params: { tags }, headers, signal });
             },
             /**
@@ -312,13 +312,13 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
             /**
              * Logs user into the system.
              */
-            async LoginUser(username?: string, password?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>> {
+            async loginUser(username?: string, password?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>> {
                 return request<string>('/user/login', 'get', { params: { username, password }, headers, signal });
             },
             /**
              * Logs out current logged in user session.
              */
-            async LogoutUser(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async logoutUser(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/user/logout', 'get', { headers, signal });
             },
             /**

@@ -89,7 +89,7 @@ export interface EShopCatalogHttpApiClient {
 }
 
 export interface Get {
-    BatchGetItems(ids: (string | number)[], apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogItem[]>>;
+    batchGetItems(ids: (string | number)[], apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogItem[]>>;
 
     item(id: number, apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogItem>>;
 
@@ -97,11 +97,11 @@ export interface Get {
 
     catalogFacets(apiVersion: "1.0", type?: (string | number)[], brand?: (string | number)[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogFacets>>;
 
-    ListItemTypes(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogType[]>>;
+    listItemTypes(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogType[]>>;
 
-    ListItemBrands(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogBrand[]>>;
+    listItemBrands(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogBrand[]>>;
 
-    ListItems(apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>>;
+    listItems(apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>>;
 
     itemsByName(name: string, apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>>;
 
@@ -117,11 +117,11 @@ export interface Delete {
 }
 
 export interface Post {
-    CreateItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    createItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 }
 
 export interface Put {
-    UpdateItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    updateItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 }
 
 export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiClient {
@@ -228,7 +228,7 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
             /**
              * Batch get catalog items
              */
-            async BatchGetItems(ids: (string | number)[], apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogItem[]>> {
+            async batchGetItems(ids: (string | number)[], apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogItem[]>> {
                 return request<CatalogItem[]>('/api/catalog/items/by', 'get', { params: { ids, "api-version": apiVersion }, headers, signal });
             },
             /**
@@ -252,19 +252,19 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
             /**
              * List catalog item types
              */
-            async ListItemTypes(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogType[]>> {
+            async listItemTypes(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogType[]>> {
                 return request<CatalogType[]>('/api/catalog/catalogtypes', 'get', { params: { "api-version": apiVersion }, headers, signal });
             },
             /**
              * List catalog item brands
              */
-            async ListItemBrands(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogBrand[]>> {
+            async listItemBrands(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogBrand[]>> {
                 return request<CatalogBrand[]>('/api/catalog/catalogbrands', 'get', { params: { "api-version": apiVersion }, headers, signal });
             },
             /**
              * List catalog items
              */
-            async ListItems(apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>> {
+            async listItems(apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>> {
                 return request<PaginatedItemsOfCatalogItem>('/api/catalog/items', 'get', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
             },
             /**
@@ -304,7 +304,7 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
             /**
              * Create a catalog item
              */
-            async CreateItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async createItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/catalog/items', 'post', { params: { "api-version": apiVersion }, body, headers, signal });
             },
         },
@@ -312,7 +312,7 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
             /**
              * Create or replace a catalog item
              */
-            async UpdateItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async updateItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/api/catalog/items', 'put', { params: { "api-version": apiVersion }, body, headers, signal });
             },
         },

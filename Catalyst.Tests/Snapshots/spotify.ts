@@ -947,19 +947,19 @@ export interface Get {
 
     usersSavedAlbums(limit?: number, offset?: number, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedAlbumObject>>;
 
-    CheckUsersSavedAlbums(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
+    checkUsersSavedAlbums(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
 
     usersSavedAudiobooks(limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSimplifiedAudiobookObject>>;
 
-    CheckUsersSavedAudiobooks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
+    checkUsersSavedAudiobooks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
 
     usersSavedEpisodes(market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedEpisodeObject>>;
 
-    CheckUsersSavedEpisodes(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
+    checkUsersSavedEpisodes(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
 
     followed(type: "artist", after?: string, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetFollowedResponse>>;
 
-    CheckCurrentUserFollows(type: "artist" | "user", ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
+    checkCurrentUserFollows(type: "artist" | "user", ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
 
     informationAboutTheUsersCurrentPlayback(market?: string, additionalTypes?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CurrentlyPlayingContextObject>>;
 
@@ -975,17 +975,17 @@ export interface Get {
 
     usersSavedShows(limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedShowObject>>;
 
-    CheckUsersSavedShows(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
+    checkUsersSavedShows(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
 
     usersTopArtistsAndTracks(type: "artists" | "tracks", timeRange?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingObject & { items?: (ArtistObject | TrackObject)[] }>>;
 
     usersSavedTracks(market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedTrackObject>>;
 
-    CheckUsersSavedTracks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
+    checkUsersSavedTracks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
 
     playlist(playlistId: string, market?: string, fields?: string, additionalTypes?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PlaylistObject>>;
 
-    CheckIfUserFollowsPlaylist(playlistId: string, ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
+    checkIfUserFollowsPlaylist(playlistId: string, ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>>;
 
     playlistCover(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ImageObject[]>>;
 
@@ -995,7 +995,7 @@ export interface Get {
 
     recommendationGenres(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetRecommendationGenresResponse>>;
 
-    Search(q: string, type: ("album" | "artist" | "playlist" | "track" | "show" | "episode" | "audiobook")[], market?: string, limit?: number, offset?: number, includeExternal?: "audio", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SearchResponse>>;
+    search(q: string, type: ("album" | "artist" | "playlist" | "track" | "show" | "episode" | "audiobook")[], market?: string, limit?: number, offset?: number, includeExternal?: "audio", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SearchResponse>>;
 
     multipleShows(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMultipleShowsResponse>>;
 
@@ -1013,69 +1013,69 @@ export interface Get {
 }
 
 export interface Delete {
-    RemoveAlbumsUser(ids: string, body: RemoveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    removeAlbumsUser(ids: string, body: RemoveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    RemoveAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    removeAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    RemoveEpisodesUser(ids: string, body: RemoveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    removeEpisodesUser(ids: string, body: RemoveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    UnfollowArtistsUsers(type: "artist" | "user", ids: string, body: UnfollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    unfollowArtistsUsers(type: "artist" | "user", ids: string, body: UnfollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    RemoveShowsUser(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    removeShowsUser(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    RemoveTracksUser(ids: string, body: RemoveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    removeTracksUser(ids: string, body: RemoveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    UnfollowPlaylist(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    unfollowPlaylist(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    RemoveTracksPlaylist(playlistId: string, body: RemoveTracksPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<RemoveTracksPlaylistResponse>>;
+    removeTracksPlaylist(playlistId: string, body: RemoveTracksPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<RemoveTracksPlaylistResponse>>;
 }
 
 export interface Put {
-    SaveAlbumsUser(ids: string, body: SaveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    saveAlbumsUser(ids: string, body: SaveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SaveAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    saveAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SaveEpisodesUser(ids: string, body: SaveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    saveEpisodesUser(ids: string, body: SaveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    FollowArtistsUsers(type: "artist" | "user", ids: string, body: FollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    followArtistsUsers(type: "artist" | "user", ids: string, body: FollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    TransferAUsersPlayback(body: TransferAusersPlaybackRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    transferAUsersPlayback(body: TransferAusersPlaybackRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    PauseAUsersPlayback(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    pauseAUsersPlayback(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    StartAUsersPlayback(body: StartAusersPlaybackRequest, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    startAUsersPlayback(body: StartAusersPlaybackRequest, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SetRepeatModeOnUsersPlayback(state: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    setRepeatModeOnUsersPlayback(state: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SeekToPositionInCurrentlyPlayingTrack(positionMs: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    seekToPositionInCurrentlyPlayingTrack(positionMs: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    ToggleShuffleForUsersPlayback(state: boolean, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    toggleShuffleForUsersPlayback(state: boolean, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SetVolumeForUsersPlayback(volumePercent: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    setVolumeForUsersPlayback(volumePercent: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SaveShowsUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    saveShowsUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SaveTracksUser(ids: string, body: SaveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    saveTracksUser(ids: string, body: SaveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    ChangePlaylistDetails(playlistId: string, body: ChangePlaylistDetailsRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    changePlaylistDetails(playlistId: string, body: ChangePlaylistDetailsRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    FollowPlaylist(playlistId: string, body: FollowPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    followPlaylist(playlistId: string, body: FollowPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    UploadCustomPlaylistCover(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    uploadCustomPlaylistCover(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    ReorderOrReplacePlaylistsTracks(playlistId: string, body: ReorderOrReplacePlaylistsTracksRequest, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ReorderOrReplacePlaylistsTracksResponse>>;
+    reorderOrReplacePlaylistsTracks(playlistId: string, body: ReorderOrReplacePlaylistsTracksRequest, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ReorderOrReplacePlaylistsTracksResponse>>;
 }
 
 export interface Post {
-    SkipUsersPlaybackToNextTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    skipUsersPlaybackToNextTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    SkipUsersPlaybackToPreviousTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    skipUsersPlaybackToPreviousTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    AddToQueue(uri: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
+    addToQueue(uri: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>>;
 
-    AddTracksToPlaylist(playlistId: string, body: AddTracksToPlaylistRequest, position?: number, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AddTracksToPlaylistResponse>>;
+    addTracksToPlaylist(playlistId: string, body: AddTracksToPlaylistRequest, position?: number, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AddTracksToPlaylistResponse>>;
 
-    CreatePlaylist(userId: string, body: CreatePlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PlaylistObject>>;
+    createPlaylist(userId: string, body: CreatePlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PlaylistObject>>;
 }
 
 export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
@@ -1332,7 +1332,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Check User's Saved Albums
              */
-            async CheckUsersSavedAlbums(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
+            async checkUsersSavedAlbums(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
                 return request<boolean[]>('/me/albums/contains', 'get', { params: { ids }, headers, signal });
             },
             /**
@@ -1344,7 +1344,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Check User's Saved Audiobooks
              */
-            async CheckUsersSavedAudiobooks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
+            async checkUsersSavedAudiobooks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
                 return request<boolean[]>('/me/audiobooks/contains', 'get', { params: { ids }, headers, signal });
             },
             /**
@@ -1356,7 +1356,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Check User's Saved Episodes
              */
-            async CheckUsersSavedEpisodes(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
+            async checkUsersSavedEpisodes(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
                 return request<boolean[]>('/me/episodes/contains', 'get', { params: { ids }, headers, signal });
             },
             /**
@@ -1368,7 +1368,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Check If User Follows Artists or Users
              */
-            async CheckCurrentUserFollows(type: "artist" | "user", ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
+            async checkCurrentUserFollows(type: "artist" | "user", ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
                 return request<boolean[]>('/me/following/contains', 'get', { params: { type, ids }, headers, signal });
             },
             /**
@@ -1416,7 +1416,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Check User's Saved Shows
              */
-            async CheckUsersSavedShows(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
+            async checkUsersSavedShows(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
                 return request<boolean[]>('/me/shows/contains', 'get', { params: { ids }, headers, signal });
             },
             /**
@@ -1434,7 +1434,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Check User's Saved Tracks
              */
-            async CheckUsersSavedTracks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
+            async checkUsersSavedTracks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
                 return request<boolean[]>('/me/tracks/contains', 'get', { params: { ids }, headers, signal });
             },
             /**
@@ -1446,7 +1446,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Check if Users Follow Playlist
              */
-            async CheckIfUserFollowsPlaylist(playlistId: string, ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
+            async checkIfUserFollowsPlaylist(playlistId: string, ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
                 return request<boolean[]>(`/playlists/${encodeURIComponent(playlistId)}/followers/contains`, 'get', { params: { ids }, headers, signal });
             },
             /**
@@ -1476,7 +1476,7 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Search for Item
              */
-            async Search(q: string, type: ("album" | "artist" | "playlist" | "track" | "show" | "episode" | "audiobook")[], market?: string, limit?: number, offset?: number, includeExternal?: "audio", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SearchResponse>> {
+            async search(q: string, type: ("album" | "artist" | "playlist" | "track" | "show" | "episode" | "audiobook")[], market?: string, limit?: number, offset?: number, includeExternal?: "audio", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SearchResponse>> {
                 return request<SearchResponse>('/search', 'get', { params: { q, type, market, limit, offset, include_external: includeExternal }, headers, signal });
             },
             /**
@@ -1526,49 +1526,49 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Remove Users' Saved Albums
              */
-            async RemoveAlbumsUser(ids: string, body: RemoveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async removeAlbumsUser(ids: string, body: RemoveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/albums', 'delete', { params: { ids }, body, headers, signal });
             },
             /**
              * Remove User's Saved Audiobooks
              */
-            async RemoveAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async removeAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/audiobooks', 'delete', { params: { ids }, headers, signal });
             },
             /**
              * Remove User's Saved Episodes
              */
-            async RemoveEpisodesUser(ids: string, body: RemoveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async removeEpisodesUser(ids: string, body: RemoveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/episodes', 'delete', { params: { ids }, body, headers, signal });
             },
             /**
              * Unfollow Artists or Users
              */
-            async UnfollowArtistsUsers(type: "artist" | "user", ids: string, body: UnfollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async unfollowArtistsUsers(type: "artist" | "user", ids: string, body: UnfollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/following', 'delete', { params: { type, ids }, body, headers, signal });
             },
             /**
              * Remove User's Saved Shows
              */
-            async RemoveShowsUser(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async removeShowsUser(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/shows', 'delete', { params: { ids, market }, headers, signal });
             },
             /**
              * Remove User's Saved Tracks
              */
-            async RemoveTracksUser(ids: string, body: RemoveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async removeTracksUser(ids: string, body: RemoveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/tracks', 'delete', { params: { ids }, body, headers, signal });
             },
             /**
              * Unfollow Playlist
              */
-            async UnfollowPlaylist(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async unfollowPlaylist(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>(`/playlists/${encodeURIComponent(playlistId)}/followers`, 'delete', { headers, signal });
             },
             /**
              * Remove Playlist Items
              */
-            async RemoveTracksPlaylist(playlistId: string, body: RemoveTracksPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<RemoveTracksPlaylistResponse>> {
+            async removeTracksPlaylist(playlistId: string, body: RemoveTracksPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<RemoveTracksPlaylistResponse>> {
                 return request<RemoveTracksPlaylistResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'delete', { body, headers, signal });
             },
         },
@@ -1576,103 +1576,103 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Save Albums for Current User
              */
-            async SaveAlbumsUser(ids: string, body: SaveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async saveAlbumsUser(ids: string, body: SaveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/albums', 'put', { params: { ids }, body, headers, signal });
             },
             /**
              * Save Audiobooks for Current User
              */
-            async SaveAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async saveAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/audiobooks', 'put', { params: { ids }, headers, signal });
             },
             /**
              * Save Episodes for Current User
              */
-            async SaveEpisodesUser(ids: string, body: SaveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async saveEpisodesUser(ids: string, body: SaveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/episodes', 'put', { params: { ids }, body, headers, signal });
             },
             /**
              * Follow Artists or Users
              */
-            async FollowArtistsUsers(type: "artist" | "user", ids: string, body: FollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async followArtistsUsers(type: "artist" | "user", ids: string, body: FollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/following', 'put', { params: { type, ids }, body, headers, signal });
             },
             /**
              * Transfer Playback
              */
-            async TransferAUsersPlayback(body: TransferAusersPlaybackRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async transferAUsersPlayback(body: TransferAusersPlaybackRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player', 'put', { body, headers, signal });
             },
             /**
              * Pause Playback
              */
-            async PauseAUsersPlayback(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async pauseAUsersPlayback(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/pause', 'put', { params: { device_id: deviceId }, headers, signal });
             },
             /**
              * Start/Resume Playback
              */
-            async StartAUsersPlayback(body: StartAusersPlaybackRequest, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async startAUsersPlayback(body: StartAusersPlaybackRequest, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/play', 'put', { params: { device_id: deviceId }, body, headers, signal });
             },
             /**
              * Set Repeat Mode
              */
-            async SetRepeatModeOnUsersPlayback(state: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async setRepeatModeOnUsersPlayback(state: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/repeat', 'put', { params: { state, device_id: deviceId }, headers, signal });
             },
             /**
              * Seek To Position
              */
-            async SeekToPositionInCurrentlyPlayingTrack(positionMs: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async seekToPositionInCurrentlyPlayingTrack(positionMs: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/seek', 'put', { params: { position_ms: positionMs, device_id: deviceId }, headers, signal });
             },
             /**
              * Toggle Playback Shuffle
              */
-            async ToggleShuffleForUsersPlayback(state: boolean, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async toggleShuffleForUsersPlayback(state: boolean, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/shuffle', 'put', { params: { state, device_id: deviceId }, headers, signal });
             },
             /**
              * Set Playback Volume
              */
-            async SetVolumeForUsersPlayback(volumePercent: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async setVolumeForUsersPlayback(volumePercent: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/volume', 'put', { params: { volume_percent: volumePercent, device_id: deviceId }, headers, signal });
             },
             /**
              * Save Shows for Current User
              */
-            async SaveShowsUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async saveShowsUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/shows', 'put', { params: { ids }, headers, signal });
             },
             /**
              * Save Tracks for Current User
              */
-            async SaveTracksUser(ids: string, body: SaveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async saveTracksUser(ids: string, body: SaveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/tracks', 'put', { params: { ids }, body, headers, signal });
             },
             /**
              * Change Playlist Details
              */
-            async ChangePlaylistDetails(playlistId: string, body: ChangePlaylistDetailsRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async changePlaylistDetails(playlistId: string, body: ChangePlaylistDetailsRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>(`/playlists/${encodeURIComponent(playlistId)}`, 'put', { body, headers, signal });
             },
             /**
              * Follow Playlist
              */
-            async FollowPlaylist(playlistId: string, body: FollowPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async followPlaylist(playlistId: string, body: FollowPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>(`/playlists/${encodeURIComponent(playlistId)}/followers`, 'put', { body, headers, signal });
             },
             /**
              * Add Custom Playlist Cover Image
              */
-            async UploadCustomPlaylistCover(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async uploadCustomPlaylistCover(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>(`/playlists/${encodeURIComponent(playlistId)}/images`, 'put', { headers, signal });
             },
             /**
              * Update Playlist Items
              */
-            async ReorderOrReplacePlaylistsTracks(playlistId: string, body: ReorderOrReplacePlaylistsTracksRequest, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ReorderOrReplacePlaylistsTracksResponse>> {
+            async reorderOrReplacePlaylistsTracks(playlistId: string, body: ReorderOrReplacePlaylistsTracksRequest, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ReorderOrReplacePlaylistsTracksResponse>> {
                 return request<ReorderOrReplacePlaylistsTracksResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'put', { params: { uris }, body, headers, signal });
             },
         },
@@ -1680,31 +1680,31 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
             /**
              * Skip To Next
              */
-            async SkipUsersPlaybackToNextTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async skipUsersPlaybackToNextTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/next', 'post', { params: { device_id: deviceId }, headers, signal });
             },
             /**
              * Skip To Previous
              */
-            async SkipUsersPlaybackToPreviousTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async skipUsersPlaybackToPreviousTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/previous', 'post', { params: { device_id: deviceId }, headers, signal });
             },
             /**
              * Add Item to Playback Queue
              */
-            async AddToQueue(uri: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
+            async addToQueue(uri: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
                 return request<void>('/me/player/queue', 'post', { params: { uri, device_id: deviceId }, headers, signal });
             },
             /**
              * Add Items to Playlist
              */
-            async AddTracksToPlaylist(playlistId: string, body: AddTracksToPlaylistRequest, position?: number, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AddTracksToPlaylistResponse>> {
+            async addTracksToPlaylist(playlistId: string, body: AddTracksToPlaylistRequest, position?: number, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AddTracksToPlaylistResponse>> {
                 return request<AddTracksToPlaylistResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'post', { params: { position, uris }, body, headers, signal });
             },
             /**
              * Create Playlist
              */
-            async CreatePlaylist(userId: string, body: CreatePlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PlaylistObject>> {
+            async createPlaylist(userId: string, body: CreatePlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PlaylistObject>> {
                 return request<PlaylistObject>(`/users/${encodeURIComponent(userId)}/playlists`, 'post', { body, headers, signal });
             },
         },

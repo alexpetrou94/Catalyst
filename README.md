@@ -14,6 +14,20 @@ dotnet tool install --global catalyst-cli --add-source https://nuget.pkg.github.
 Or download a standalone binary from the [latest release](../../releases/latest)
 (`catalyst-windows-amd64.exe`, `catalyst-linux-amd64`, `catalyst-darwin-amd64`, `catalyst-darwin-arm64`).
 
+## Breaking change in this version
+
+Generated method names are now **always camelCase**, also when they come from an operationId:
+`ListItems` is `listItems`, `FindPetsByStatus` is `findPetsByStatus`, `UpdatePet` under `put` is `updatePet`.
+The HTTP verb is still dropped when it prefixes the name at a word boundary (`GetUser` under `get` is `user`;
+`PostcodeLookup` is `postcodeLookup`). Interface, type and enum names are unchanged.
+
+Regenerated clients therefore have renamed methods. To find the call sites to update:
+
+1. regenerate the client (`catalyst gen openapi`);
+2. type-check the consuming project (`tsc --noEmit`, or its normal build): every renamed call is a type error at the
+   call site;
+3. optionally `git diff` the generated file to see each old and new name.
+
 ## Usage
 
 Validate and inspect a specification:
@@ -316,8 +330,8 @@ then method. `--filter` words must all match the path, operationId, method name,
 (case-insensitive):
 
 ```text
-GET   /pets       client.get.ListPets   - List pets
-POST  /pets       client.post.CreatePet - Create a pet
+GET   /pets       client.get.listPets   - List pets
+POST  /pets       client.post.createPet - Create a pet
 GET   /pets/{id}  client.get.pet        - Get a pet
 ```
 
@@ -332,7 +346,7 @@ POST /pets
 Create a pet
 
 Call:
-  client.post.CreatePet(body: NewPet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>
+  client.post.createPet(body: NewPet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>>
 
 Body: NewPet (application/json, required)
 Response: Pet (application/json)

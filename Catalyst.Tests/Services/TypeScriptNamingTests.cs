@@ -89,13 +89,17 @@ public class TypeScriptNamingTests
 
     [Theory]
     [InlineData("GetUser", "get", false, "user")]
-    [InlineData("PostcodeLookup", "post", false, "PostcodeLookup")]
-    [InlineData("Getaway", "get", false, "Getaway")]
+    [InlineData("PostcodeLookup", "post", false, "postcodeLookup")]
+    [InlineData("Getaway", "get", false, "getaway")]
     [InlineData("getMedia", "get", true, "media")]
     [InlineData("getlowercase", "get", true, "lowercase")]
     [InlineData("get1abc", "get", true, "get1abc")]
-    [InlineData("Get", "get", false, "Get")]
-    public void StripHttpVerbPrefix_OnlyStripsAtAWordBoundary(string name, string verb, bool pathDerived, string expected)
+    [InlineData("Get", "get", false, "get")]
+    [InlineData("ListItems", "get", false, "listItems")]
+    [InlineData("FindPetsByStatus", "get", false, "findPetsByStatus")]
+    [InlineData("UpdatePet", "put", false, "updatePet")]
+    [InlineData("BatchGetItems", "post", false, "batchGetItems")]
+    public void StripHttpVerbPrefix_ReturnsACamelCaseName_AndOnlyStripsAtAWordBoundary(string name, string verb, bool pathDerived, string expected)
     {
         Assert.Equal(expected, TypeScriptNaming.StripHttpVerbPrefix(name, verb, pathDerived));
     }

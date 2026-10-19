@@ -1297,11 +1297,11 @@ internal sealed class TypeScriptGenerator
 
                 if (!usedMethodNames.Add(methodName))
                 {
-                    string fullName = operation.Name;
+                    string fullName = TypeScriptNaming.LowerFirst(operation.Name);
                     int counter = 2;
                     while (!usedMethodNames.Add(fullName))
                     {
-                        fullName = operation.Name + counter++;
+                        fullName = TypeScriptNaming.LowerFirst(operation.Name) + counter++;
                     }
 
                     Warnings.Add(new Issue(IssueCodes.DuplicateMethodName, $"Method name \"{methodName}\" is used twice for {operation.HttpMethod} operations. {operation.HttpMethod} {operation.Path} is named \"{fullName}\" instead."));

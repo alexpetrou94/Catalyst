@@ -72,6 +72,30 @@ public class TypeScriptGeneratorTests
     }
 
     [Fact]
+    public void Generate_KeepsMethodNamesUnique_AfterLowerCasing()
+    {
+        // "GetUser" and "getUser" are one name; "User" collides with the stripped form; all stay distinct camelCase keys.
+        OpenApiDocument document = SpecLoader.Parse("""
+            {
+                "openapi": "3.0.3",
+                "info": { "title": "Names", "version": "1.0" },
+                "paths": {
+                    "/a": { "get": { "operationId": "GetUser", "responses": { "200": { "description": "OK" } } } },
+                    "/b": { "get": { "operationId": "getUser", "responses": { "200": { "description": "OK" } } } },
+                    "/c": { "get": { "operationId": "User", "responses": { "200": { "description": "OK" } } } }
+                }
+            }
+            """);
+        TypeScriptGenerator generator = new(document, "Names");
+
+        generator.Generate();
+
+        List<string> methods = generator.Model.Operations.Select(o => o.MethodName).ToList();
+        Assert.Equal(3, methods.Distinct().Count());
+        Assert.All(methods, name => Assert.True(char.IsLower(name[0]), name));
+    }
+
+    [Fact]
     public void Generate_Warnings_ReportPathParameterMismatches()
     {
         TypeScriptGenerator generator = SpecLoader.CreateGenerator(SpecLoader.Load("edge-cases"));

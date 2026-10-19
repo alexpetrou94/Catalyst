@@ -161,7 +161,7 @@ export interface RedoclyMuseumApiClient {
 export interface Get {
     museumHours(startDate?: string, page?: number, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<MuseumHours>>;
 
-    ListSpecialEvents(startDate?: string, endDate?: string, page?: number, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEventCollection>>;
+    listSpecialEvents(startDate?: string, endDate?: string, page?: number, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEventCollection>>;
 
     specialEvent(eventId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>>;
 
@@ -169,13 +169,13 @@ export interface Get {
 }
 
 export interface Post {
-    CreateSpecialEvent(body: SpecialEvent, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>>;
+    createSpecialEvent(body: SpecialEvent, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>>;
 
-    BuyMuseumTickets(body: BuyMuseumTickets, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<MuseumTicketsConfirmation>>;
+    buyMuseumTickets(body: BuyMuseumTickets, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<MuseumTicketsConfirmation>>;
 }
 
 export interface Patch {
-    UpdateSpecialEvent(eventId: string, body: SpecialEventFields, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>>;
+    updateSpecialEvent(eventId: string, body: SpecialEventFields, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>>;
 }
 
 export interface Delete {
@@ -289,7 +289,7 @@ export function createClient(options: ClientOptions = {}): RedoclyMuseumApiClien
             /**
              * List special events
              */
-            async ListSpecialEvents(startDate?: string, endDate?: string, page?: number, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEventCollection>> {
+            async listSpecialEvents(startDate?: string, endDate?: string, page?: number, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEventCollection>> {
                 return request<SpecialEventCollection>('/special-events', 'get', { params: { startDate, endDate, page, limit }, headers, signal });
             },
             /**
@@ -309,13 +309,13 @@ export function createClient(options: ClientOptions = {}): RedoclyMuseumApiClien
             /**
              * Create special events
              */
-            async CreateSpecialEvent(body: SpecialEvent, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>> {
+            async createSpecialEvent(body: SpecialEvent, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>> {
                 return request<SpecialEvent>('/special-events', 'post', { body, headers, signal });
             },
             /**
              * Buy museum tickets
              */
-            async BuyMuseumTickets(body: BuyMuseumTickets, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<MuseumTicketsConfirmation>> {
+            async buyMuseumTickets(body: BuyMuseumTickets, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<MuseumTicketsConfirmation>> {
                 return request<MuseumTicketsConfirmation>('/tickets', 'post', { body, headers, signal });
             },
         },
@@ -323,7 +323,7 @@ export function createClient(options: ClientOptions = {}): RedoclyMuseumApiClien
             /**
              * Update special event
              */
-            async UpdateSpecialEvent(eventId: string, body: SpecialEventFields, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>> {
+            async updateSpecialEvent(eventId: string, body: SpecialEventFields, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>> {
                 return request<SpecialEvent>(`/special-events/${encodeURIComponent(eventId)}`, 'patch', { body, headers, signal });
             },
         },

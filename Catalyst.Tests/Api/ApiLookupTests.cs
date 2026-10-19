@@ -29,8 +29,8 @@ public class ApiLookupTests
     [InlineData("GETSEARCH", "client.get.search")]
     [InlineData("get.search", "client.get.search")]
     [InlineData("client.get.search", "client.get.search")]
-    [InlineData("PostcodeLookup", "client.post.PostcodeLookup")]
-    [InlineData("post.PostcodeLookup", "client.post.PostcodeLookup")]
+    [InlineData("PostcodeLookup", "client.post.postcodeLookup")]
+    [InlineData("post.PostcodeLookup", "client.post.postcodeLookup")]
     public void FindOperation_ResolvesEverySelectorForm(string selector, string expectedCall)
     {
         OperationMatch match = ApiLookup.FindOperation(ModelOf("edge-cases"), selector);

@@ -217,10 +217,17 @@ internal static class TypeScriptNaming
         return names;
     }
 
+    /// <summary>Lower-cases the first character: the casing of every generated method name.</summary>
+    public static string LowerFirst(string name)
+    {
+        return name.Length == 0 ? name : char.ToLowerInvariant(name[0]) + name.Substring(1);
+    }
+
     /// <summary>
-    /// Drops the HTTP verb from an operation name ("GetUser" under get becomes "user"). The verb is
-    /// only stripped when the next character starts a new word, so "PostcodeLookup" stays intact;
-    /// names derived from the path always start a new word after the verb. A digit never starts a method name.
+    /// The method name of an operation, always camelCase. The HTTP verb is dropped ("GetUser" under get becomes
+    /// "user"), but only when the next character starts a new word, so "PostcodeLookup" stays intact (as
+    /// "postcodeLookup"); names derived from the path always start a new word after the verb. A digit never
+    /// starts a method name.
     /// </summary>
     public static string StripHttpVerbPrefix(string name, string httpMethod, bool pathDerived = false)
     {
@@ -229,10 +236,10 @@ internal static class TypeScriptNaming
             string stripped = name.Substring(httpMethod.Length);
             if (!char.IsDigit(stripped[0]) && (pathDerived || !char.IsLower(stripped[0])))
             {
-                return char.ToLowerInvariant(stripped[0]) + stripped.Substring(1);
+                return LowerFirst(stripped);
             }
         }
 
-        return name;
+        return LowerFirst(name);
     }
 }

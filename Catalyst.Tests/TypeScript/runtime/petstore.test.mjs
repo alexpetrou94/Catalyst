@@ -16,7 +16,7 @@ describe("relative base URL", () => {
 
     it("prefixes a relative base URL given by the caller and appends the query", async () => {
         await withFetch(() => jsonResponse([]), async (calls) => {
-            await createClient({ baseUrl: "/proxy/petstore/" }).get.FindPetsByStatus("sold");
+            await createClient({ baseUrl: "/proxy/petstore/" }).get.findPetsByStatus("sold");
 
             assert.equal(calls[0].url, "/proxy/petstore/pet/findByStatus?status=sold");
         });
@@ -27,7 +27,7 @@ describe("binary request body", () => {
     it("sends a Blob as is with an octet-stream content-type", async () => {
         await withFetch(() => jsonResponse({ code: 200 }), async (calls) => {
             const image = new Blob([new Uint8Array([1, 2, 3])]);
-            await createClient().post.UploadFile(7, image, "cat.png");
+            await createClient().post.uploadFile(7, image, "cat.png");
 
             assert.equal(calls[0].url, "/api/v3/pet/7/uploadImage?additionalMetadata=cat.png");
             assert.equal(calls[0].init.body, image);
