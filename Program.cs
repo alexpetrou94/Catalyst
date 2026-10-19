@@ -34,6 +34,8 @@ CommandApp app = new();
 
 app.Configure(config =>
 {
+    // Unknown options and stray arguments are errors, and every usage error exits with the same code.
+    UsageErrors.Configure(config, args);
     config.SetApplicationVersion(GetApplicationVersion());
     config.AddBranch("gen", gen =>
     {

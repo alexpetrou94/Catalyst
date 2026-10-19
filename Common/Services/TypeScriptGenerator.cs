@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Catalyst.Common.Models;
 using Microsoft.OpenApi;
 using Auxil.CodeGeneration.Common;
 using Auxil.CodeGeneration.Common.Builders;
@@ -57,7 +58,7 @@ internal sealed class TypeScriptGenerator
     }
 
     /// <summary>Non-fatal problems found while generating (name collisions, path parameter mismatches).</summary>
-    public List<string> Warnings { get; } = [];
+    public List<Issue> Warnings { get; } = [];
 
     public string Generate()
     {
@@ -1160,7 +1161,7 @@ internal sealed class TypeScriptGenerator
                         fullName = operation.Name + counter++;
                     }
 
-                    Warnings.Add($"Method name \"{methodName}\" is used twice for {operation.HttpMethod} operations. {operation.HttpMethod} {operation.Path} is named \"{fullName}\" instead.");
+                    Warnings.Add(new Issue(IssueCodes.DuplicateMethodName, $"Method name \"{methodName}\" is used twice for {operation.HttpMethod} operations. {operation.HttpMethod} {operation.Path} is named \"{fullName}\" instead."));
                     methodName = fullName;
                 }
 
@@ -1232,7 +1233,7 @@ internal sealed class TypeScriptGenerator
             IOpenApiParameter? declared = declaredPath.FirstOrDefault(p => p.Name == variable);
             if (declared == null)
             {
-                Warnings.Add($"Path parameter \"{variable}\" of {httpMethod} {path} is used in the URL but not declared. Assuming a required string.");
+                Warnings.Add(new Issue(IssueCodes.PathParameterMismatch, $"Path parameter \"{variable}\" of {httpMethod} {path} is used in the URL but not declared. Assuming a required string."));
             }
 
             pathParams.Add(CreateParameterInfo(variable, declared?.Schema, required: true, "path", usedBindings));
@@ -1242,7 +1243,7 @@ internal sealed class TypeScriptGenerator
         {
             if (!templateVariables.Contains(declared.Name ?? string.Empty))
             {
-                Warnings.Add($"Path parameter \"{declared.Name}\" of {httpMethod} {path} does not appear in the URL and was ignored.");
+                Warnings.Add(new Issue(IssueCodes.PathParameterMismatch, $"Path parameter \"{declared.Name}\" of {httpMethod} {path} does not appear in the URL and was ignored."));
             }
         }
 
@@ -1359,7 +1360,7 @@ internal sealed class TypeScriptGenerator
 
         string existingPath = usedNames[baseName].Path;
         string existingMethod = usedNames[baseName].Method;
-        Warnings.Add($"Duplicate method name \"{baseName}\" for {existingMethod} {existingPath} and {method.Method} {path}. Suffix added: \"{candidate}\".");
+        Warnings.Add(new Issue(IssueCodes.DuplicateMethodName, $"Duplicate method name \"{baseName}\" for {existingMethod} {existingPath} and {method.Method} {path}. Suffix added: \"{candidate}\"."));
 
         return candidate;
     }

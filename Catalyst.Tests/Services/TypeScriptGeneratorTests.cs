@@ -66,8 +66,9 @@ public class TypeScriptGeneratorTests
 
         generator.Generate();
 
-        string warning = Assert.Single(generator.Warnings);
-        Assert.Contains("Duplicate method name", warning);
+        Issue warning = Assert.Single(generator.Warnings);
+        Assert.Equal(IssueCodes.DuplicateMethodName, warning.Code);
+        Assert.Contains("Duplicate method name", warning.Message);
     }
 
     [Fact]
@@ -77,8 +78,8 @@ public class TypeScriptGeneratorTests
 
         generator.Generate();
 
-        Assert.Contains(generator.Warnings, w => w.Contains("\"lineNo\"") && w.Contains("not declared"));
-        Assert.Contains(generator.Warnings, w => w.Contains("\"ghost\"") && w.Contains("does not appear"));
+        Assert.Contains(generator.Warnings, w => w.Code == IssueCodes.PathParameterMismatch && w.Message.Contains("\"lineNo\"") && w.Message.Contains("not declared"));
+        Assert.Contains(generator.Warnings, w => w.Code == IssueCodes.PathParameterMismatch && w.Message.Contains("\"ghost\"") && w.Message.Contains("does not appear"));
         Assert.Equal(2, generator.Warnings.Count);
     }
 }

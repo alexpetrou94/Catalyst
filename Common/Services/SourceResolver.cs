@@ -8,6 +8,25 @@ internal static class SourceResolver
 {
     private static readonly TimeSpan DefaultHttpTimeout = TimeSpan.FromSeconds(30);
 
+    private const string FileNotFoundPrefix = "File not found: ";
+    private const string TimeoutPrefix = "Request timed out";
+
+    /// <summary>Maps a failed Resolve to its stable issue code; the messages above are produced by this class.</summary>
+    public static string ClassifyFailure(string? errorMessage)
+    {
+        if (errorMessage != null && errorMessage.StartsWith(FileNotFoundPrefix, StringComparison.Ordinal))
+        {
+            return IssueCodes.SourceNotFound;
+        }
+
+        if (errorMessage != null && errorMessage.StartsWith(TimeoutPrefix, StringComparison.Ordinal))
+        {
+            return IssueCodes.SourceTimeout;
+        }
+
+        return IssueCodes.SourceFetchFailed;
+    }
+
     public static SourceType DetermineSourceType(string source)
     {
         if (string.IsNullOrWhiteSpace(source))
@@ -92,7 +111,7 @@ internal static class SourceResolver
         }
         catch (TaskCanceledException)
         {
-            return Result<SourceResolveResult>.Error($"Request timed out after {timeout.TotalSeconds:0.##} seconds.");
+            return Result<SourceResolveResult>.Error($"{TimeoutPrefix} after {timeout.TotalSeconds:0.##} seconds.");
         }
         catch (Exception ex)
         {
@@ -106,7 +125,7 @@ internal static class SourceResolver
 
         if (!File.Exists(fullPath))
         {
-            return Result<SourceResolveResult>.Error($"File not found: {fullPath}");
+            return Result<SourceResolveResult>.Error(FileNotFoundPrefix + fullPath);
         }
 
         try

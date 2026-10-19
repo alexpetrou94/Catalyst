@@ -41,35 +41,65 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         [Description("Skip TLS certificate validation when fetching a remote OpenAPI spec over HTTPS. Only use with a local server that has an untrusted (e.g. self-signed) certificate. Validation stays enabled by default.")]
         public bool Insecure { get; init; }
 
+        [CommandOption("--check")]
+        [Description("Do not write anything: generate in memory and compare with the files on disk. Exit code 1 when a client is out of date or missing. Works with --source and --output, or for every configured client.")]
+        public bool Check { get; init; }
+
+        [CommandOption("--json")]
+        [Description("Print one JSON document on stdout instead of text (see the README for the format). Works in every mode.")]
+        public bool Json { get; init; }
+
         /// <summary>The language to generate: --language, else typescript whenever --output is given. Null means validate only.</summary>
         internal string? EffectiveLanguage =>
             !string.IsNullOrWhiteSpace(Language) ? Language
             : !string.IsNullOrWhiteSpace(Output) ? "typescript"
             : null;
 
-        public override ValidationResult Validate()
+        /// <summary>The first usage problem of these options, or null when they are fine together.</summary>
+        internal string? GetUsageError()
         {
+            // Spectre binds its internal "__default_command" marker as the value of an option that is last on
+            // the line without a value (for example a trailing "--source"), instead of reporting it.
+            foreach ((string option, string? value) in new[] { ("--source", Source), ("--language", Language), ("--output", Output), ("--class-name", ClassName) })
+            {
+                if (value == "__default_command")
+                {
+                    return $"The {option} option needs a value.";
+                }
+            }
+
+            if (SkipPaths?.Contains("__default_command") == true)
+            {
+                return "The --skip-paths option needs a value.";
+            }
+
             if (string.IsNullOrWhiteSpace(Source))
             {
                 // Without --source the command generates every configured client, so the
                 // single-client options do not apply.
-                if (HasSingleClientOptions())
-                {
-                    return ValidationResult.Error("--language, --output, --class-name, --skip-paths and --insecure require --source. Pass --source, or omit the single-client options to generate every client from catalyst.config.json.");
-                }
-
-                return base.Validate();
+                return HasSingleClientOptions()
+                    ? "--language, --output, --class-name, --skip-paths and --insecure require --source. Pass --source, or omit the single-client options to generate every client from catalyst.config.json."
+                    : null;
             }
 
-            if (!string.IsNullOrWhiteSpace(Language))
+            if (!string.IsNullOrWhiteSpace(Language) && string.IsNullOrWhiteSpace(Output))
             {
-                if (string.IsNullOrWhiteSpace(Output))
-                {
-                    return ValidationResult.Error("The --output option is required when --language is specified.");
-                }
+                return "The --output option is required when --language is specified.";
             }
 
-            return base.Validate();
+            if (Check && EffectiveLanguage == null)
+            {
+                return "--check compares generated code with a file, so it needs --output (or use it without --source to check every configured client).";
+            }
+
+            return null;
+        }
+
+        public override ValidationResult Validate()
+        {
+            // With --json the usage error is reported in the JSON document (RunAsync), not by Spectre.
+            string? usageError = Json ? null : GetUsageError();
+            return usageError == null ? base.Validate() : ValidationResult.Error(usageError);
         }
 
         private bool HasSingleClientOptions()
@@ -87,118 +117,168 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         return await RunAsync(settings, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Runs the command; cancellation (Ctrl+C) ends it with "Cancelled." and exit code 130.</summary>
+    /// <summary>
+    /// Runs the command: build the report of what happened, then print it as text or JSON. Cancellation
+    /// (Ctrl+C) ends the run with a CANCELLED report and exit code 130.
+    /// </summary>
     internal static async Task<int> RunAsync(Settings settings, CancellationToken cancellationToken)
     {
+        RunReport report;
         try
         {
-            return await ExecuteCoreAsync(settings, cancellationToken).ConfigureAwait(false);
+            report = await BuildReportAsync(settings, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            Terminal.WriteWarning("Cancelled.", label: false);
-            return CancelledExitCode;
+            report = RunReport.Failure(ModeOf(settings), IssueCodes.Cancelled, "Cancelled.");
         }
+
+        ReportRenderer.Render(report, settings.Json);
+        return report.ExitCode;
     }
 
-    /// <summary>The conventional exit code for a process stopped with Ctrl+C (128 + SIGINT).</summary>
-    internal const int CancelledExitCode = 130;
-
-    private static async Task<int> ExecuteCoreAsync(Settings settings, CancellationToken cancellationToken)
+    private static string ModeOf(Settings settings)
     {
-        if (string.IsNullOrWhiteSpace(settings.Source))
+        if (settings.Check)
         {
-            return await ExecuteConfiguredClientsAsync(cancellationToken).ConfigureAwait(false);
+            return RunMode.Check;
         }
 
+        return string.IsNullOrWhiteSpace(settings.Source) || settings.EffectiveLanguage != null
+            ? RunMode.Generate
+            : RunMode.Validate;
+    }
+
+    private static async Task<RunReport> BuildReportAsync(Settings settings, CancellationToken cancellationToken)
+    {
+        string mode = ModeOf(settings);
+
+        string? usageError = settings.GetUsageError();
+        if (usageError != null)
+        {
+            return RunReport.Failure(mode, IssueCodes.Usage, usageError);
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Source))
+        {
+            return await BuildConfiguredReportAsync(mode, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (mode == RunMode.Validate)
+        {
+            return await BuildValidationReportAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+
+        ClientRequest request = new(
+            Name: null,
+            Source: settings.Source,
+            Output: settings.Output!,
+            ClassName: settings.ClassName,
+            Language: settings.EffectiveLanguage!,
+            SkipPaths: ResolveSkipPaths(settings.SkipPaths),
+            Insecure: settings.Insecure);
+
+        RunReport report = new() { Mode = mode, SingleClient = true };
+        report.Results.Add(await ClientGenerator.GenerateAsync(request, check: mode == RunMode.Check, cancellationToken).ConfigureAwait(false));
+        return report.Complete();
+    }
+
+    /// <summary>Validation only: read and parse the spec, then describe it. Source and parse failures are top-level errors.</summary>
+    private static async Task<RunReport> BuildValidationReportAsync(Settings settings, CancellationToken cancellationToken)
+    {
         Result<SourceResolveResult> resolveResult = await SourceResolver.Resolve(settings.Source, settings.Insecure, cancellationToken).ConfigureAwait(false);
         if (!resolveResult.IsSuccess)
         {
-            Terminal.WriteError(resolveResult.ErrorMessage);
-            return 1;
+            return RunReport.Failure(RunMode.Validate, SourceResolver.ClassifyFailure(resolveResult.ErrorMessage), resolveResult.ErrorMessage ?? "Unknown error");
         }
 
         Result<OpenApiParseResult> parseResult = OpenApiParser.Parse(resolveResult.Value!.Content, resolveResult.Value!.DisplayPath);
         if (!parseResult.IsSuccess)
         {
-            Terminal.WriteError(parseResult.ErrorMessage);
-            return 1;
+            return RunReport.Failure(RunMode.Validate, IssueCodes.ParseFailed, parseResult.ErrorMessage ?? "Unknown error");
         }
 
-        if (settings.EffectiveLanguage != null)
+        OpenApiParseResult parsed = parseResult.Value!;
+        RunReport report = new()
         {
-            if (parseResult.Value!.Diagnostic.Errors.Count > 0)
-            {
-                Terminal.WriteWarning($"OpenAPI spec has {parseResult.Value!.Diagnostic.Errors.Count} validation error(s). Generated code may be incomplete.");
-            }
+            Mode = RunMode.Validate,
+            Spec = SummarizeSpec(parsed),
+            Diagnostics = DescribeDiagnostics(parsed.Diagnostic),
+            Parsed = (resolveResult.Value!.DisplayPath, parsed),
+        };
 
-            return ExecuteGeneration(settings, parseResult.Value!.Document);
+        int errorCount = parsed.Diagnostic.Errors.Count;
+        if (errorCount > 0)
+        {
+            report.Error = new Issue(IssueCodes.SpecInvalid, $"OpenAPI spec has {errorCount} validation error(s).");
         }
 
-        return ExecuteValidation(resolveResult.Value!.DisplayPath, parseResult.Value!.Document, parseResult.Value!.Diagnostic);
+        return report.Complete();
     }
 
-    /// <summary>
-    /// Generates every client defined under gen.openapi.clients in the nearest catalyst.config.json.
-    /// Exit code 0 only when every configured client was written.
-    /// </summary>
-    private static async Task<int> ExecuteConfiguredClientsAsync(CancellationToken cancellationToken)
+    /// <summary>Generates or checks every client defined under gen.openapi.clients in the nearest catalyst.config.json.</summary>
+    private static async Task<RunReport> BuildConfiguredReportAsync(string mode, CancellationToken cancellationToken)
     {
         ConfigLoadResult loadResult = ConfigLoader.LoadDetailed(Directory.GetCurrentDirectory());
 
         if (loadResult.Error is not null)
         {
-            Terminal.WriteError(loadResult.Error);
-            return 1;
+            return RunReport.Failure(mode, IssueCodes.ConfigInvalid, loadResult.Error);
         }
 
         if (loadResult.Config is null || loadResult.Path is null)
         {
-            Terminal.WriteError("No catalyst.config.json found in this directory or any parent. Pass --source to generate a single client.");
-            return 1;
+            return RunReport.Failure(mode, IssueCodes.ConfigNotFound, "No catalyst.config.json found in this directory or any parent. Pass --source to generate a single client.");
         }
 
         if (loadResult.Config.Gen.OpenApi.Clients.Count == 0)
         {
-            Terminal.WriteError($"{loadResult.Path} defines no clients under gen.openapi.clients.");
-            return 1;
+            return RunReport.Failure(mode, IssueCodes.NoClients, $"{loadResult.Path} defines no clients under gen.openapi.clients.");
         }
 
         string configDirectory = Path.GetDirectoryName(loadResult.Path)!;
 
-        AnsiConsole.MarkupLine($"[grey]Generating {loadResult.Config.Gen.OpenApi.Clients.Count} client(s) from[/] {Markup.Escape(loadResult.Path)}");
+        RunReport report = new() { Mode = mode, ConfigPath = loadResult.Path };
+        report.Results.AddRange(await ConfiguredClientRunner
+            .RunAsync(loadResult.Config, configDirectory, cancellationToken, check: mode == RunMode.Check)
+            .ConfigureAwait(false));
+        return report.Complete();
+    }
 
-        List<ConfiguredClientOutcome> outcomes = await ConfiguredClientRunner
-            .RunAsync(loadResult.Config, configDirectory, cancellationToken)
-            .ConfigureAwait(false);
+    private static SpecSummary SummarizeSpec(OpenApiParseResult parsed)
+    {
+        OpenApiDocument document = parsed.Document;
+        List<SpecOperation> operations = [];
 
-        foreach (ConfiguredClientOutcome outcome in outcomes)
+        foreach (KeyValuePair<string, IOpenApiPathItem> path in (document.Paths ?? []).OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            if (outcome.Success)
+            foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in (path.Value.Operations ?? []).OrderBy(o => o.Key.Method, StringComparer.Ordinal))
             {
-                WriteGeneratedLine(outcome.OutputPath!, outcome.Unchanged);
-
-                foreach (string warning in outcome.Warnings)
-                {
-                    Terminal.WriteWarning(warning);
-                }
-            }
-            else
-            {
-                Terminal.WriteError($"{outcome.Name}: {outcome.Error ?? "Unknown error"}");
+                operations.Add(new SpecOperation(
+                    operation.Key.Method.ToUpperInvariant(),
+                    path.Key,
+                    string.IsNullOrWhiteSpace(operation.Value.OperationId) ? null : operation.Value.OperationId,
+                    string.IsNullOrWhiteSpace(operation.Value.Summary) ? null : operation.Value.Summary));
             }
         }
 
-        int failed = outcomes.Count((outcome) => !outcome.Success);
+        // The reader reports the spec version as a major.minor enum ("OpenApi3_0"), not the exact text.
+        string version = parsed.Diagnostic.SpecificationVersion.ToString().Replace("OpenApi", string.Empty).Replace('_', '.');
 
-        if (failed == 0)
-        {
-            AnsiConsole.MarkupLine($"[green]{outcomes.Count} client(s) generated.[/]");
-            return 0;
-        }
+        return new SpecSummary(
+            document.Info?.Title,
+            document.Info?.Version,
+            version,
+            document.Paths?.Count ?? 0,
+            document.Components?.Schemas?.Count ?? 0,
+            operations);
+    }
 
-        Terminal.Error.MarkupLine($"[red]{failed} of {outcomes.Count} client(s) failed.[/]");
-        return 1;
+    private static List<DiagnosticEntry> DescribeDiagnostics(OpenApiDiagnostic diagnostic)
+    {
+        return diagnostic.Errors.Select(e => new DiagnosticEntry("error", e.Pointer, e.Message))
+            .Concat(diagnostic.Warnings.Select(w => new DiagnosticEntry("warning", w.Pointer, w.Message)))
+            .ToList();
     }
 
     internal static List<string> ResolveSkipPaths(string[]? cliSkipPaths, CatalystConfig? config = null)
@@ -262,203 +342,5 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
         char[] invalid = Path.GetInvalidFileNameChars();
         string sanitized = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
         return string.IsNullOrWhiteSpace(sanitized) ? "api" : sanitized;
-    }
-
-    /// <summary>
-    /// Reports a generated file. The "TypeScript generated: &lt;path&gt;" line is a contract with tools that
-    /// parse the output (the Syncfully Workbench), so it is identical whether or not the file was rewritten;
-    /// an unchanged file only adds an info line after it.
-    /// </summary>
-    internal static void WriteGeneratedLine(string outputPath, bool unchanged)
-    {
-        // Plain text, never wrapped: a path split over two lines would hide it from tools that parse this line.
-        Terminal.WriteLine(Terminal.Out, "TypeScript generated:", Path.GetFullPath(outputPath), AnsiColor.Green);
-
-        if (unchanged)
-        {
-            AnsiConsole.MarkupLine("[grey]Unchanged since the last generation; file not rewritten.[/]");
-        }
-    }
-
-    private static int ExecuteGeneration(Settings settings, OpenApiDocument document)
-    {
-        if (settings.EffectiveLanguage!.Equals("typescript", StringComparison.OrdinalIgnoreCase))
-        {
-            List<string> skipPaths = ResolveSkipPaths(settings.SkipPaths);
-            TypeScriptGenerator generator = new TypeScriptGenerator(document, settings.ClassName, skipPaths);
-            string code = generator.Generate();
-
-            string outputPath = ResolveOutputPath(settings.Output, settings.ClassName);
-            bool written = GeneratedFileWriter.WriteIfChanged(outputPath, code);
-
-            if (generator.SkippedPathCount > 0)
-            {
-                AnsiConsole.MarkupLine($"[grey]Skipped {generator.SkippedPathCount} path(s) matching configured skip prefixes.[/]");
-            }
-
-            foreach (string warning in generator.Warnings)
-            {
-                Terminal.WriteWarning(warning);
-            }
-
-            WriteGeneratedLine(outputPath, unchanged: !written);
-            return 0;
-        }
-
-        Terminal.WriteError($"Unsupported language: {settings.Language}");
-        return 1;
-    }
-
-    private static int ExecuteValidation(string sourceDisplay, OpenApiDocument document, OpenApiDiagnostic diagnostic)
-    {
-        RenderOutput(sourceDisplay, document, diagnostic);
-
-        if (diagnostic.Errors.Count > 0)
-        {
-            AnsiConsole.WriteLine();
-            Terminal.Error.MarkupLine("[red]Validation failed with errors.[/]");
-            return 1;
-        }
-
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[green]Document parsed and validated successfully.[/]");
-        AnsiConsole.MarkupLine("[grey]Ready for code generation.[/]");
-        return 0;
-    }
-
-    private static void RenderOutput(string sourceDisplay, OpenApiDocument document, OpenApiDiagnostic diagnostic)
-    {
-        AnsiConsole.Write(new Rule("[bold blue]OpenAPI Specification[/]").RuleStyle("grey"));
-        AnsiConsole.Write(new Panel(new Markup($"[bold]Source:[/] {Markup.Escape(sourceDisplay)}"))
-            .Border(BoxBorder.Rounded)
-            .BorderStyle(new Style(Color.Grey)));
-
-        Table infoTable = new Table()
-            .Border(TableBorder.Rounded)
-            .BorderColor(Color.Grey)
-            .AddColumn("Property", c => c.Width(20))
-            .AddColumn("Value");
-
-        infoTable.AddRow("Title", Markup.Escape(document.Info?.Title ?? "(none)"));
-        infoTable.AddRow("Version", Markup.Escape(document.Info?.Version ?? "(none)"));
-        infoTable.AddRow("Paths", document.Paths?.Count.ToString() ?? "0");
-        infoTable.AddRow("Schemas", document.Components?.Schemas?.Count.ToString() ?? "0");
-        infoTable.AddRow("Security Schemes", document.Components?.SecuritySchemes?.Count.ToString() ?? "0");
-
-        AnsiConsole.Write(infoTable);
-
-        if (document.Paths?.Count > 0)
-        {
-            AnsiConsole.WriteLine();
-
-            if (Console.IsOutputRedirected)
-            {
-                RenderPathList(document);
-            }
-            else
-            {
-                RenderPathTree(document);
-            }
-        }
-
-        RenderDiagnostics(diagnostic);
-    }
-
-    /// <summary>
-    /// One line per operation for piped output: a tree costs three lines per endpoint and is
-    /// mostly indentation in a log or an output panel.
-    /// </summary>
-    private static void RenderPathList(OpenApiDocument document)
-    {
-        AnsiConsole.MarkupLine($"[bold]Paths ({document.Paths!.Count})[/]");
-
-        foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths.OrderBy(p => p.Key))
-        {
-            if (path.Value.Operations == null)
-            {
-                continue;
-            }
-
-            foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.Method))
-            {
-                string method = operation.Key.Method.ToUpperInvariant().PadRight(6);
-                AnsiConsole.MarkupLine($"  {method} {Markup.Escape(path.Key)}");
-            }
-        }
-    }
-
-    private static void RenderPathTree(OpenApiDocument document)
-    {
-        Tree tree = new Tree("[bold]Paths[/]")
-            .Style(new Style(Color.Blue));
-
-        foreach (KeyValuePair<string, IOpenApiPathItem> path in document.Paths!.OrderBy(p => p.Key))
-        {
-            TreeNode pathNode = tree.AddNode($"[yellow]{Markup.Escape(path.Key)}[/]");
-
-            if (path.Value.Operations != null)
-            {
-                foreach (KeyValuePair<HttpMethod, OpenApiOperation> operation in path.Value.Operations.OrderBy(o => o.Key.Method))
-                {
-                    Color methodColor = operation.Key.Method.ToUpperInvariant() switch
-                    {
-                        "GET" => Color.Green,
-                        "POST" => Color.Blue,
-                        "PUT" => Color.Yellow,
-                        "DELETE" => Color.Red,
-                        "PATCH" => Color.Magenta1,
-                        _ => Color.Grey,
-                    };
-
-                    string summary = !string.IsNullOrWhiteSpace(operation.Value.Summary)
-                        ? $" - {Markup.Escape(operation.Value.Summary)}"
-                        : string.Empty;
-
-                    pathNode.AddNode($"[{methodColor}]{operation.Key.Method}[/]{summary}");
-                }
-            }
-        }
-
-        AnsiConsole.Write(tree);
-    }
-
-    private static void RenderDiagnostics(OpenApiDiagnostic diagnostic)
-    {
-        List<OpenApiError> errors = diagnostic.Errors?.ToList() ?? [];
-        List<OpenApiError> warnings = diagnostic.Warnings?.ToList() ?? [];
-
-        if (errors.Count == 0 && warnings.Count == 0)
-        {
-            return;
-        }
-
-        AnsiConsole.WriteLine();
-        Table diagTable = new Table()
-            .Border(TableBorder.Rounded)
-            .BorderColor(Color.Yellow)
-            .AddColumn("Severity", c => c.Width(12))
-            .AddColumn("Pointer")
-            .AddColumn("Message");
-
-        foreach (OpenApiError error in errors)
-        {
-            diagTable.AddRow(
-                "[red]Error[/]",
-                Markup.Escape(error.Pointer ?? "N/A"),
-                Markup.Escape(error.Message));
-        }
-
-        foreach (OpenApiError warning in warnings)
-        {
-            diagTable.AddRow(
-                "[yellow]Warning[/]",
-                Markup.Escape(warning.Pointer ?? "N/A"),
-                Markup.Escape(warning.Message));
-        }
-
-        AnsiConsole.Write(new Panel(diagTable)
-            .Header("[bold yellow]Validation Diagnostics[/]")
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Yellow));
     }
 }
