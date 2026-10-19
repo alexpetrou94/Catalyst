@@ -8,7 +8,8 @@ namespace Catalyst.Tests.TypeScript;
 /// compiled clients are exercised against a stubbed fetch (runtime/*.test.mjs, run by node:test).
 /// Needs node and npm on PATH; the first run installs the pinned TypeScript with npm ci.
 /// </summary>
-public class GeneratedTypeScriptTests : IClassFixture<TypeScriptToolchain>
+[Collection("TypeScript")]
+public class GeneratedTypeScriptTests
 {
     private readonly TypeScriptToolchain _toolchain;
 
@@ -37,6 +38,12 @@ public class GeneratedTypeScriptTests : IClassFixture<TypeScriptToolchain>
     }
 }
 
+/// <summary>Every test class that needs the TypeScript toolchain shares one instance, so npm ci never runs twice at once.</summary>
+[CollectionDefinition("TypeScript")]
+public sealed class TypeScriptCollection : ICollectionFixture<TypeScriptToolchain>
+{
+}
+
 /// <summary>Installs the TypeScript compiler once per test run and compiles the snapshots on demand.</summary>
 public sealed class TypeScriptToolchain
 {
@@ -59,6 +66,24 @@ public sealed class TypeScriptToolchain
     }
 
     public Lazy<ToolResult> Compile { get; }
+
+    /// <summary>Type-checks standalone TypeScript with the same strictness as the snapshots.</summary>
+    public ToolResult Typecheck(string code)
+    {
+        string directory = Path.Combine(TestPaths.TypeScriptDirectory, "build", "lookup");
+        Directory.CreateDirectory(directory);
+        string file = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".ts");
+        File.WriteAllText(file, code);
+
+        try
+        {
+            return Run("node", [CompilerPath, file, "--noEmit", "--strict", "--target", "ES2022", "--lib", "ES2022,DOM"], TestPaths.TypeScriptDirectory);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
 
     private static string CompilerPath =>
         Path.Combine(TestPaths.TypeScriptDirectory, "node_modules", "typescript", "bin", "tsc");

@@ -625,25 +625,11 @@ public class OpenApiCommandTests
         return dir;
     }
 
-    private sealed record CommandRun(int ExitCode, string Output, string Error);
-
-    private static IAnsiConsole CreateConsole(StringWriter writer, int width = 1000)
-    {
-        IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
-        {
-            Ansi = AnsiSupport.No,
-            ColorSystem = ColorSystemSupport.NoColors,
-            Out = new AnsiConsoleOutput(writer),
-        });
-        console.Profile.Width = width;
-        return console;
-    }
-
     private static async Task<(int ExitCode, string Error)> CapturingErrorAsync(Func<Task<int>> action)
     {
         StringWriter error = new();
         IAnsiConsole previous = Terminal.Error;
-        Terminal.Error = CreateConsole(error);
+        Terminal.Error = CommandHarness.CreateConsole(error);
         try
         {
             int exitCode = await action();
@@ -659,29 +645,6 @@ public class OpenApiCommandTests
 
     private static CommandRun RunCommand(int width, params string[] arguments)
     {
-        StringWriter output = new();
-        StringWriter error = new();
-        IAnsiConsole previousOut = AnsiConsole.Console;
-        IAnsiConsole previousError = Terminal.Error;
-
-        AnsiConsole.Console = CreateConsole(output, width);
-        Terminal.Error = CreateConsole(error, width);
-        try
-        {
-            CommandApp app = new();
-            app.Configure(config =>
-            {
-                UsageErrors.Configure(config, arguments);
-                config.AddCommand<OpenApiCommand>("openapi");
-            });
-
-            int exitCode = app.Run(["openapi", .. arguments]);
-            return new CommandRun(exitCode, output.ToString(), error.ToString());
-        }
-        finally
-        {
-            AnsiConsole.Console = previousOut;
-            Terminal.Error = previousError;
-        }
+        return CommandHarness.Run(width, ["gen", "openapi", .. arguments]);
     }
 }

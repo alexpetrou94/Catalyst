@@ -24,6 +24,9 @@ internal static class IssueCodes
     public const string GenerationFailed = "GENERATION_FAILED";
     public const string Cancelled = "CANCELLED";
     public const string Usage = "USAGE";
+    public const string OperationNotFound = "OPERATION_NOT_FOUND";
+    public const string OperationAmbiguous = "OPERATION_AMBIGUOUS";
+    public const string SchemaNotFound = "SCHEMA_NOT_FOUND";
 
     // Warnings
     public const string SpecValidationErrors = "SPEC_VALIDATION_ERRORS";

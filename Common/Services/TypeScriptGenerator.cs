@@ -38,6 +38,11 @@ internal sealed class TypeScriptGenerator
 
     private bool _usesBlobResponse;
 
+    /// <summary>Collects the declared type names a piece of generation refers to (see CaptureReferences).</summary>
+    private readonly Stack<List<string>> _referenceScopes = new();
+
+    private readonly List<(string Name, string Kind, List<string> DependsOn)> _declarations = [];
+
     public TypeScriptGenerator(
         OpenApiDocument document,
         string? className,
@@ -56,6 +61,12 @@ internal sealed class TypeScriptGenerator
             [_clientInterfaceName]);
         _usedTypeNames = [.. _componentNames.Values, _clientInterfaceName];
     }
+
+    /// <summary>
+    /// What was generated, in lookup form: the operations with their generated names and types, and every
+    /// declared type with its TypeScript text and dependencies. Filled by <see cref="Generate"/>.
+    /// </summary>
+    public ClientModel Model { get; private set; } = new([], []);
 
     /// <summary>Non-fatal problems found while generating (name collisions, path parameter mismatches).</summary>
     public List<Issue> Warnings { get; } = [];
@@ -83,7 +94,9 @@ internal sealed class TypeScriptGenerator
 
         file.EndFile();
 
-        return ts.Render();
+        string code = ts.Render();
+        Model = BuildModel(code, operations);
+        return code;
     }
 
     public int SkippedPathCount { get; private set; }
@@ -232,10 +245,12 @@ internal sealed class TypeScriptGenerator
             if (IsStringEnum(schema))
             {
                 BuildEnumFromSchema(file, typeName, schema);
+                _declarations.Add((typeName, "enum", []));
             }
             else
             {
                 BuildTypeAlias(file, typeName, schema, MapEnum(schema));
+                _declarations.Add((typeName, "type", []));
             }
 
             return;
@@ -248,7 +263,10 @@ internal sealed class TypeScriptGenerator
             return;
         }
 
-        BuildTypeAlias(file, typeName, schema, ResolveType(file, typeName, schema));
+        string resolved = string.Empty;
+        List<string> dependsOn = CaptureReferences(() => resolved = ResolveType(file, typeName, schema));
+        BuildTypeAlias(file, typeName, schema, resolved);
+        _declarations.Add((typeName, "type", dependsOn));
     }
 
     private static void BuildTypeAlias(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema, string type)
@@ -265,23 +283,28 @@ internal sealed class TypeScriptGenerator
 
     private void BuildInterfaceFromSchema(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema)
     {
-        InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder = file.Interface(typeName).Export();
-
-        if (!string.IsNullOrWhiteSpace(schema.Description))
+        List<string> dependsOn = CaptureReferences(() =>
         {
-            interfaceBuilder.Doc(DocText(schema.Description));
-        }
+            InterfaceScope<TypeScript, FileScope<TypeScript>> interfaceBuilder = file.Interface(typeName).Export();
 
-        if (schema.Properties != null)
-        {
-            foreach (KeyValuePair<string, IOpenApiSchema> property in schema.Properties)
+            if (!string.IsNullOrWhiteSpace(schema.Description))
             {
-                bool isRequired = schema.Required?.Contains(property.Key) ?? false;
-                BuildInterfaceProperty(file, interfaceBuilder, typeName, property.Key, property.Value, isRequired);
+                interfaceBuilder.Doc(DocText(schema.Description));
             }
-        }
 
-        interfaceBuilder.EndInterface();
+            if (schema.Properties != null)
+            {
+                foreach (KeyValuePair<string, IOpenApiSchema> property in schema.Properties)
+                {
+                    bool isRequired = schema.Required?.Contains(property.Key) ?? false;
+                    BuildInterfaceProperty(file, interfaceBuilder, typeName, property.Key, property.Value, isRequired);
+                }
+            }
+
+            interfaceBuilder.EndInterface();
+        });
+
+        _declarations.Add((typeName, "interface", dependsOn));
     }
 
     private static void BuildEnumFromSchema(FileScope<TypeScript> file, string typeName, IOpenApiSchema schema)
@@ -364,7 +387,8 @@ internal sealed class TypeScriptGenerator
         {
             if (operation.RequestBodySchema != null)
             {
-                operation.RequestBodyType = ResolveType(file, operation.Name + "Request", operation.RequestBodySchema);
+                operation.RequestRefs = CaptureReferences(() =>
+                    operation.RequestBodyType = ResolveType(file, operation.Name + "Request", operation.RequestBodySchema));
             }
             else if (operation.RequestBodyEncoding == "binary")
             {
@@ -378,7 +402,8 @@ internal sealed class TypeScriptGenerator
             }
             else if (operation.ResponseSchema != null)
             {
-                operation.ReturnType = ResolveType(file, operation.Name + "Response", operation.ResponseSchema);
+                operation.ResponseRefs = CaptureReferences(() =>
+                    operation.ReturnType = ResolveType(file, operation.Name + "Response", operation.ResponseSchema));
             }
         }
     }
@@ -438,7 +463,39 @@ internal sealed class TypeScriptGenerator
     private string ResolveReference(OpenApiSchemaReference schemaRef)
     {
         string? id = schemaRef.Reference.Id;
-        return id != null && _componentNames.TryGetValue(id, out string? name) ? name : "any";
+        if (id != null && _componentNames.TryGetValue(id, out string? name))
+        {
+            NoteReference(name);
+            return name;
+        }
+
+        return "any";
+    }
+
+    /// <summary>Runs generation work and returns the declared type names it referred to, in order of first use.</summary>
+    private List<string> CaptureReferences(Action work)
+    {
+        List<string> references = [];
+        _referenceScopes.Push(references);
+
+        try
+        {
+            work();
+        }
+        finally
+        {
+            _referenceScopes.Pop();
+        }
+
+        return references;
+    }
+
+    private void NoteReference(string typeName)
+    {
+        if (_referenceScopes.Count > 0 && !_referenceScopes.Peek().Contains(typeName))
+        {
+            _referenceScopes.Peek().Add(typeName);
+        }
     }
 
     private string ResolveObject(FileScope<TypeScript>? file, string suggestedName, IOpenApiSchema schema)
@@ -452,6 +509,7 @@ internal sealed class TypeScriptGenerator
 
             string typeName = AllocateTypeName(suggestedName);
             BuildInterfaceFromSchema(file, typeName, schema);
+            NoteReference(typeName);
             return typeName;
         }
 
@@ -1038,6 +1096,66 @@ internal sealed class TypeScriptGenerator
             .EndFunction();
     }
 
+    /// <summary>Collects the operations and declared types into the lookup model, from the generation state and the rendered file.</summary>
+    private ClientModel BuildModel(string code, List<OperationInfo> operations)
+    {
+        Dictionary<string, string> rendered = RenderedDeclarations.Split(code);
+        Dictionary<string, string> componentOf = _componentNames.ToDictionary(pair => pair.Value, pair => pair.Key);
+
+        // File order, which is also the order readers know from the generated code.
+        List<TypeDeclaration> types = _declarations
+            .Where(declaration => rendered.ContainsKey(declaration.Name))
+            .OrderBy(declaration => code.IndexOf(rendered[declaration.Name], StringComparison.Ordinal))
+            .Select(declaration => new TypeDeclaration(
+                declaration.Name,
+                declaration.Kind,
+                componentOf.GetValueOrDefault(declaration.Name),
+                rendered[declaration.Name],
+                declaration.DependsOn))
+            .ToList();
+
+        return new ClientModel(operations.Select(ToApiOperation).ToList(), types);
+    }
+
+    private static ApiOperation ToApiOperation(OperationInfo operation)
+    {
+        List<SignatureParameter> signature = BuildSignature(operation);
+        string signatureText = $"{operation.MethodName}({string.Join(", ", signature.Select(p => $"{p.Name}{(p.Optional ? "?" : string.Empty)}: {p.Type}"))}): Promise<ApiResult<{operation.ReturnType}>>";
+
+        List<ApiParameter> parameters = operation.PathParams
+            .Concat(operation.QueryParams.Where(p => p.Required))
+            .Concat(operation.QueryParams.Where(p => !p.Required))
+            .Select(p => new ApiParameter(p.Name, p.OriginalName, p.Location, p.Required, p.Type, p.Description))
+            .ToList();
+
+        ApiBody? body = operation.RequestBodyType == null
+            ? null
+            : new ApiBody(operation.RequestBodyType, operation.RequestMediaType ?? string.Empty, operation.RequestBodyRequired);
+
+        List<string> referenced = operation.PathParams.SelectMany(p => p.References)
+            .Concat(operation.QueryParams.SelectMany(p => p.References))
+            .Concat(operation.RequestRefs)
+            .Concat(operation.ResponseRefs)
+            .Distinct()
+            .ToList();
+
+        return new ApiOperation(
+            operation.HttpMethod.ToUpperInvariant(),
+            operation.Path,
+            operation.OperationId,
+            string.IsNullOrWhiteSpace(operation.Summary) ? null : operation.Summary,
+            operation.Description,
+            operation.Tags,
+            operation.Deprecated,
+            operation.HttpMethod,
+            operation.MethodName,
+            signatureText,
+            parameters,
+            body,
+            new ApiResponse(operation.ReturnType, operation.ResponseMediaType),
+            referenced);
+    }
+
     /// <summary>Helpers that turn an object into form data or a query-style string, for the encodings the spec uses.</summary>
     private void EmitBodyEncoders(BodyBuilder<TypeScript> b)
     {
@@ -1191,8 +1309,15 @@ internal sealed class TypeScriptGenerator
             QueryParams = queryParams,
             RequestBodySchema = requestBody?.Schema,
             RequestBodyEncoding = requestBody?.Encoding,
+            RequestMediaType = requestBody?.MediaType,
+            RequestBodyRequired = operation.RequestBody?.Required ?? false,
             ResponseSchema = response.Schema,
             ResponseIsBinary = response.Binary,
+            ResponseMediaType = response.MediaType,
+            OperationId = string.IsNullOrWhiteSpace(operation.OperationId) ? null : operation.OperationId,
+            Description = string.IsNullOrWhiteSpace(operation.Description) ? null : operation.Description,
+            Tags = operation.Tags?.Select(tag => tag.Name).Where(name => !string.IsNullOrEmpty(name)).Select(name => name!).ToList() ?? [],
+            Deprecated = operation.Deprecated,
             ReturnType = "void",
         };
     }
@@ -1236,7 +1361,7 @@ internal sealed class TypeScriptGenerator
                 Warnings.Add(new Issue(IssueCodes.PathParameterMismatch, $"Path parameter \"{variable}\" of {httpMethod} {path} is used in the URL but not declared. Assuming a required string."));
             }
 
-            pathParams.Add(CreateParameterInfo(variable, declared?.Schema, required: true, "path", usedBindings));
+            pathParams.Add(CreateParameterInfo(variable, declared?.Schema, required: true, "path", usedBindings, declared?.Description));
         }
 
         foreach (IOpenApiParameter declared in declaredPath)
@@ -1251,13 +1376,13 @@ internal sealed class TypeScriptGenerator
 
         foreach (IOpenApiParameter param in merged.Where(p => p.In == ParameterLocation.Query))
         {
-            queryParams.Add(CreateParameterInfo(param.Name ?? "param", param.Schema, param.Required, "query", usedBindings));
+            queryParams.Add(CreateParameterInfo(param.Name ?? "param", param.Schema, param.Required, "query", usedBindings, param.Description));
         }
 
         return (pathParams, queryParams);
     }
 
-    private ParameterInfo CreateParameterInfo(string rawName, IOpenApiSchema? schema, bool required, string location, HashSet<string> usedBindings)
+    private ParameterInfo CreateParameterInfo(string rawName, IOpenApiSchema? schema, bool required, string location, HashSet<string> usedBindings, string? description)
     {
         // Only normalize separator-delimited names (e.g. "user-id" -> "userId").
         // Already-camelCase names like "userId" must be left untouched, since the
@@ -1281,12 +1406,18 @@ internal sealed class TypeScriptGenerator
             }
         }
 
+        string type = "string";
+        List<string> references = schema == null ? [] : CaptureReferences(() => type = ResolveInlineType(schema));
+
         return new ParameterInfo
         {
             OriginalName = rawName,
             Name = binding,
-            Type = schema != null ? ResolveInlineType(schema) : "string",
+            Type = type,
             Required = required,
+            Location = location,
+            Description = description,
+            References = references,
         };
     }
 
@@ -1467,7 +1598,7 @@ internal sealed class TypeScriptGenerator
             _ => "binary",
         };
 
-        return new BodySelection(best.Value.Schema, encoding);
+        return new BodySelection(best.Value.Schema, encoding, best.Key);
     }
 
     private static int MediaTypeRank(string mediaType)
@@ -1525,7 +1656,7 @@ internal sealed class TypeScriptGenerator
         IDictionary<string, IOpenApiMediaType>? content = response?.Content;
         if (content == null || content.Count == 0)
         {
-            return new ResponseSelection(null, false);
+            return new ResponseSelection(null, false, null);
         }
 
         KeyValuePair<string, IOpenApiMediaType> best = content.OrderBy(entry => MediaTypeRank(entry.Key)).First();
@@ -1533,7 +1664,7 @@ internal sealed class TypeScriptGenerator
         bool binary = IsBinaryMediaType(best.Key)
             || (schema != null && schema.Type is { } type && type.HasFlag(JsonSchemaType.String) && IsBinarySchema(schema));
 
-        return new ResponseSelection(schema, binary);
+        return new ResponseSelection(schema, binary, best.Key);
     }
 
     private static IOpenApiResponse? FindSuccessResponse(OpenApiOperation operation)
@@ -1662,6 +1793,15 @@ internal sealed class TypeScriptGenerator
         public string? RequestBodyType { get; set; }
         public string ReturnType { get; set; } = "void";
         public string MethodName { get; set; } = string.Empty;
+        public string? OperationId { get; init; }
+        public string? Description { get; init; }
+        public List<string> Tags { get; init; } = [];
+        public bool Deprecated { get; init; }
+        public string? RequestMediaType { get; init; }
+        public bool RequestBodyRequired { get; init; }
+        public string? ResponseMediaType { get; init; }
+        public List<string> RequestRefs { get; set; } = [];
+        public List<string> ResponseRefs { get; set; } = [];
     }
 
     private sealed class ParameterInfo
@@ -1670,12 +1810,15 @@ internal sealed class TypeScriptGenerator
         public required string Name { get; init; }
         public required string Type { get; init; }
         public required bool Required { get; init; }
+        public string Location { get; init; } = string.Empty;
+        public string? Description { get; init; }
+        public List<string> References { get; init; } = [];
     }
 
     private sealed record SignatureParameter(string Name, string Type, bool Optional);
 
     /// <summary>The request body media type chosen for an operation and how the client encodes it.</summary>
-    private sealed record BodySelection(IOpenApiSchema? Schema, string Encoding);
+    private sealed record BodySelection(IOpenApiSchema? Schema, string Encoding, string MediaType);
 
-    private sealed record ResponseSelection(IOpenApiSchema? Schema, bool Binary);
+    private sealed record ResponseSelection(IOpenApiSchema? Schema, bool Binary, string? MediaType);
 }

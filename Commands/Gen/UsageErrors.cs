@@ -1,3 +1,4 @@
+using Catalyst.Commands.Api;
 using Catalyst.Common.Models;
 using Catalyst.Common.Services;
 using Spectre.Console.Cli;
@@ -26,6 +27,13 @@ internal static class UsageErrors
     {
         if (exception is CommandParseException or CommandRuntimeException)
         {
+            if (args.Contains("--json") && args.Length > 1 && args[0] == "api")
+            {
+                ApiReport apiReport = ApiReport.Failure($"api {args[1]}", IssueCodes.Usage, exception.Message);
+                apiReport.Render(json: true);
+                return apiReport.ExitCode;
+            }
+
             if (args.Contains("--json"))
             {
                 RunReport report = RunReport.Failure(GuessMode(args), IssueCodes.Usage, exception.Message);

@@ -27,6 +27,14 @@ internal static class ConfiguredClientRunner
         return results;
     }
 
+    /// <summary>Relative file sources resolve against the config folder, matching how output works.</summary>
+    internal static string ResolveSource(string source, string configDirectory)
+    {
+        return SourceResolver.DetermineSourceType(source) == SourceType.FilePath && !Path.IsPathRooted(source)
+            ? Path.Combine(configDirectory, source)
+            : source;
+    }
+
     /// <summary>
     /// Generates one client. Whatever goes wrong fails only this client, so the rest of the batch still
     /// runs; the one exception is cancellation, which stops the whole run.
@@ -58,11 +66,7 @@ internal static class ConfiguredClientRunner
                 ? client.Output!
                 : Path.Combine(configDirectory, client.Output!);
 
-            // Relative file sources resolve against the config folder, matching how output works.
-            if (SourceResolver.DetermineSourceType(source) == SourceType.FilePath && !Path.IsPathRooted(source))
-            {
-                source = Path.Combine(configDirectory, source);
-            }
+            source = ResolveSource(source, configDirectory);
 
             List<string> skipPaths = client.SkipPaths.Count > 0 ? client.SkipPaths : config.Gen.OpenApi.SkipPaths;
 

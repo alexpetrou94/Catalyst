@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Text;
-using Catalyst.Commands.Gen;
+using Catalyst.Commands;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -32,24 +32,7 @@ if (Console.IsOutputRedirected || Console.IsErrorRedirected)
 
 CommandApp app = new();
 
-app.Configure(config =>
-{
-    // Unknown options and stray arguments are errors, and every usage error exits with the same code.
-    UsageErrors.Configure(config, args);
-    config.SetApplicationVersion(GetApplicationVersion());
-    config.AddBranch("gen", gen =>
-    {
-        gen.SetDescription("Generation commands for code and assets");
-        gen.AddCommand<OpenApiCommand>("openapi")
-            .WithDescription("Validates or generates TypeScript clients from OpenAPI specifications. Run it without --source to generate every client defined under gen.openapi.clients in catalyst.config.json. Use --insecure to skip TLS certificate validation when fetching from an HTTPS server with an untrusted (e.g. self-signed) certificate.")
-            .WithExample("gen", "openapi", "--source", "./swagger.json")
-            .WithExample("gen", "openapi", "--source", "https://api.example.com/openapi.json")
-            .WithExample("gen", "openapi", "--source", "./swagger.json", "--language", "typescript", "--output", "./api.ts")
-            .WithExample("gen", "openapi", "--source", "./swagger.json", "--language", "typescript", "--output", "./api.ts", "--class-name", "MyApi")
-            .WithExample("gen", "openapi", "--source", "https://localhost:7036/openapi/v1.json", "--language", "typescript", "--output", "./api.ts", "--insecure")
-            .WithExample("gen", "openapi");
-    });
-});
+app.Configure(config => AppConfiguration.Configure(config, args, GetApplicationVersion()));
 
 return app.Run(args);
 

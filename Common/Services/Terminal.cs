@@ -36,6 +36,18 @@ internal static class Terminal
         console.Profile.Out.Writer.WriteLine($"{styledLabel} {text}");
     }
 
+    /// <summary>One plain line on stdout, never wrapped and never parsed as markup.</summary>
+    public static void WriteRaw(string line)
+    {
+        Out.Profile.Out.Writer.WriteLine(line);
+    }
+
+    /// <summary>One plain line on stderr, never wrapped and never parsed as markup.</summary>
+    public static void WriteRawError(string line)
+    {
+        Error.Profile.Out.Writer.WriteLine(line);
+    }
+
     public static void WriteError(string? message)
     {
         WriteLine(Error, "Error:", message ?? "Unknown error", AnsiColor.Red);
