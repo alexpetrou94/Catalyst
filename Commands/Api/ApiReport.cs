@@ -67,36 +67,47 @@ internal sealed class ApiReport
         return new ApiReport { Command = command, Error = new Issue(code, message), Suggestions = suggestions is { Count: > 0 } ? suggestions : null }.Complete();
     }
 
+    /// <summary>The JSON document of the --json output (and of the MCP structured content).</summary>
+    public string ToJson() => JsonSerializer.Serialize(this, JsonOptions);
+
+    /// <summary>The text the CLI prints, as one string; errors are included as "Error: ..." lines.</summary>
+    public string ToText()
+    {
+        List<string> lines = [];
+        WriteText(lines.Add, lines.Add, message => lines.Add("Error: " + message));
+        return string.Join(Environment.NewLine, lines);
+    }
+
     public void Render(bool json)
     {
         if (json)
         {
-            Terminal.WriteRaw(JsonSerializer.Serialize(this, JsonOptions));
+            Terminal.WriteRaw(ToJson());
         }
         else
         {
-            WriteText();
+            WriteText(Terminal.WriteRaw, Terminal.WriteRawError, Terminal.WriteError);
         }
     }
 
-    private void WriteText()
+    private void WriteText(Action<string> write, Action<string> writeRawError, Action<string> writeError)
     {
         if (Error != null)
         {
             if (Error.Code == IssueCodes.Cancelled)
             {
-                Terminal.WriteWarning("Cancelled.", label: false);
+                writeRawError("Cancelled.");
                 return;
             }
 
-            Terminal.WriteError(Error.Message);
+            writeError(Error.Message);
 
             if (Suggestions != null)
             {
-                Terminal.WriteRawError("Did you mean:");
+                writeRawError("Did you mean:");
                 foreach (string suggestion in Suggestions)
                 {
-                    Terminal.WriteRawError("  " + suggestion);
+                    writeRawError("  " + suggestion);
                 }
             }
 
@@ -105,42 +116,42 @@ internal sealed class ApiReport
 
         if (Operations != null)
         {
-            WriteList(Operations);
+            WriteList(Operations, write);
         }
         else if (Operation != null)
         {
-            WriteOperation(Operation);
+            WriteOperation(Operation, write);
         }
         else if (Changes != null)
         {
-            WriteChanges(Changes);
+            WriteChanges(Changes, write);
         }
 
         if (Types is { Count: > 0 })
         {
             if (Operation != null)
             {
-                Terminal.WriteRaw(string.Empty);
-                Terminal.WriteRaw("Types:");
+                write(string.Empty);
+                write("Types:");
             }
 
             for (int i = 0; i < Types.Count; i++)
             {
                 if (i > 0)
                 {
-                    Terminal.WriteRaw(string.Empty);
+                    write(string.Empty);
                 }
 
-                Terminal.WriteRaw(Types[i].Declaration);
+                write(Types[i].Declaration);
             }
         }
     }
 
-    private static void WriteChanges(List<ApiChange> changes)
+    private static void WriteChanges(List<ApiChange> changes, Action<string> write)
     {
         if (changes.Count == 0)
         {
-            Terminal.WriteRaw("No changes.");
+            write("No changes.");
             return;
         }
 
@@ -149,24 +160,24 @@ internal sealed class ApiReport
 
         if (breaking.Count > 0)
         {
-            Terminal.WriteRaw($"Breaking changes ({breaking.Count})");
+            write($"Breaking changes ({breaking.Count})");
             foreach (ApiChange change in breaking)
             {
-                Terminal.WriteRaw(ChangeLine("BREAKING", change));
+                write(ChangeLine("BREAKING", change));
             }
         }
 
         if (other.Count > 0)
         {
-            Terminal.WriteRaw($"Other changes ({other.Count})");
+            write($"Other changes ({other.Count})");
             foreach (ApiChange change in other)
             {
-                Terminal.WriteRaw(ChangeLine("change", change));
+                write(ChangeLine("change", change));
             }
         }
 
-        Terminal.WriteRaw(string.Empty);
-        Terminal.WriteRaw($"{breaking.Count} breaking, {other.Count} non-breaking change(s).");
+        write(string.Empty);
+        write($"{breaking.Count} breaking, {other.Count} non-breaking change(s).");
     }
 
     private static string ChangeLine(string label, ApiChange change)
@@ -178,7 +189,7 @@ internal sealed class ApiReport
         return $"{label.PadRight(8)}  {subject}: {change.Message}";
     }
 
-    private static void WriteList(List<ApiListItem> items)
+    private static void WriteList(List<ApiListItem> items, Action<string> write)
     {
         int methodWidth = items.Count == 0 ? 0 : items.Max(i => i.Method.Length);
         int pathWidth = items.Count == 0 ? 0 : items.Max(i => i.Path.Length);
@@ -188,32 +199,32 @@ internal sealed class ApiReport
         {
             string deprecated = item.Deprecated ? " [deprecated]" : string.Empty;
             string summary = string.IsNullOrWhiteSpace(item.Summary) ? string.Empty : " - " + OneLine(item.Summary, 100);
-            Terminal.WriteRaw($"{item.Method.PadRight(methodWidth)}  {item.Path.PadRight(pathWidth)}  {item.Call.PadRight(callWidth)}{deprecated}{summary}".TrimEnd());
+            write($"{item.Method.PadRight(methodWidth)}  {item.Path.PadRight(pathWidth)}  {item.Call.PadRight(callWidth)}{deprecated}{summary}".TrimEnd());
         }
     }
 
-    private static void WriteOperation(ApiOperation operation)
+    private static void WriteOperation(ApiOperation operation, Action<string> write)
     {
-        Terminal.WriteRaw($"{operation.Method} {operation.Path}{(operation.Deprecated ? " [deprecated]" : string.Empty)}");
+        write($"{operation.Method} {operation.Path}{(operation.Deprecated ? " [deprecated]" : string.Empty)}");
 
         if (!string.IsNullOrWhiteSpace(operation.Summary))
         {
-            Terminal.WriteRaw(OneLine(operation.Summary, 200));
+            write(OneLine(operation.Summary, 200));
         }
 
         if (!string.IsNullOrWhiteSpace(operation.Description))
         {
-            Terminal.WriteRaw(OneLine(operation.Description, 600));
+            write(OneLine(operation.Description, 600));
         }
 
-        Terminal.WriteRaw(string.Empty);
-        Terminal.WriteRaw("Call:");
-        Terminal.WriteRaw($"  client.{operation.Verb}.{operation.Signature}");
+        write(string.Empty);
+        write("Call:");
+        write($"  client.{operation.Verb}.{operation.Signature}");
 
         if (operation.Parameters.Count > 0)
         {
-            Terminal.WriteRaw(string.Empty);
-            Terminal.WriteRaw("Parameters:");
+            write(string.Empty);
+            write("Parameters:");
 
             string[][] rows = new[] { new[] { "NAME", "WIRE", "IN", "REQUIRED", "TYPE" } }
                 .Concat(operation.Parameters.Select(p => new[] { p.Name, p.WireName, p.In, p.Required ? "required" : "optional", p.Type }))
@@ -225,20 +236,20 @@ internal sealed class ApiReport
                 string cells = string.Join("  ", rows[i].Select((cell, column) => cell.PadRight(widths[column])));
                 string? parameterDescription = i == 0 ? "DESCRIPTION" : operation.Parameters[i - 1].Description;
                 string description = string.IsNullOrWhiteSpace(parameterDescription) ? string.Empty : "  " + OneLine(parameterDescription, 100);
-                Terminal.WriteRaw(("  " + cells + description).TrimEnd());
+                write(("  " + cells + description).TrimEnd());
             }
         }
 
-        Terminal.WriteRaw(string.Empty);
+        write(string.Empty);
 
         if (operation.Body != null)
         {
             string mediaType = string.IsNullOrEmpty(operation.Body.MediaType) ? string.Empty : operation.Body.MediaType + ", ";
-            Terminal.WriteRaw($"Body: {operation.Body.Type} ({mediaType}{(operation.Body.Required ? "required" : "optional")})");
+            write($"Body: {operation.Body.Type} ({mediaType}{(operation.Body.Required ? "required" : "optional")})");
         }
 
         string responseMedia = string.IsNullOrEmpty(operation.Response.MediaType) ? string.Empty : $" ({operation.Response.MediaType})";
-        Terminal.WriteRaw($"Response: {operation.Response.Type}{responseMedia}");
+        write($"Response: {operation.Response.Type}{responseMedia}");
     }
 
     /// <summary>Collapses whitespace so descriptions stay on one line, and cuts them at a length.</summary>

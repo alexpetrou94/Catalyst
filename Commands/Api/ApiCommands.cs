@@ -51,14 +51,7 @@ internal sealed class ApiListCommand : AsyncCommand<ApiListCommand.Settings>
 
     protected override Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
-        return ApiCommandRunner.RunAsync(settings, "api list", model =>
-        {
-            List<ApiListItem> items = ApiLookup.FilterOperations(model, settings.Filter, settings.Tag, settings.Method)
-                .Select(o => new ApiListItem(o.Method, o.Path, o.OperationId, o.Summary, o.Deprecated, o.Tags, o.Call))
-                .ToList();
-
-            return new ApiReport { Command = "api list", Operations = items }.Complete();
-        }, cancellationToken);
+        return ApiCommandRunner.RunAsync(settings, "api list", model => ApiAnswers.List(model, settings.Filter, settings.Tag, settings.Method), cancellationToken);
     }
 }
 
@@ -77,23 +70,7 @@ internal sealed class ApiShowCommand : AsyncCommand<ApiShowCommand.Settings>
 
     protected override Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
-        return ApiCommandRunner.RunAsync(settings, "api show", model =>
-        {
-            string selector = string.Join(' ', settings.Operation);
-            OperationMatch match = ApiLookup.FindOperation(model, selector);
-
-            if (match.Operation == null)
-            {
-                return ApiReport.Failure("api show", match.ErrorCode!, match.Message!, match.Suggestions);
-            }
-
-            return new ApiReport
-            {
-                Command = "api show",
-                Operation = match.Operation,
-                Types = settings.NoTypes ? null : ApiLookup.TypeClosure(model, match.Operation.ReferencedTypes),
-            }.Complete();
-        }, cancellationToken);
+        return ApiCommandRunner.RunAsync(settings, "api show", model => ApiAnswers.Show(model, string.Join(' ', settings.Operation), includeTypes: !settings.NoTypes), cancellationToken);
     }
 }
 
@@ -117,33 +94,7 @@ internal sealed class ApiDiffCommand : AsyncCommand<ApiDiffCommand.Settings>
 
     protected override Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
-        return ApiCommandRunner.RunAsync(settings, "api diff", async (model, target, token) =>
-        {
-            (string? content, string? displayPath, Issue? problem) = await ApiBaseLoader.LoadAsync(settings.Base!, target, settings.Insecure, token).ConfigureAwait(false);
-            if (content == null)
-            {
-                return ApiReport.Failure("api diff", problem!.Code, problem.Message);
-            }
-
-            (ClientModel? baseModel, Issue? baseProblem) = ApiCommandRunner.BuildModel(content, displayPath!, target);
-            if (baseModel == null)
-            {
-                return ApiReport.Failure("api diff", baseProblem!.Code, "Base spec: " + baseProblem.Message);
-            }
-
-            List<ApiChange> changes = ApiDiff.Compare(baseModel, model);
-            int breaking = changes.Count(c => c.Severity == ChangeSeverity.Breaking);
-            ApiReport report = new() { Command = "api diff", Changes = changes, Summary = new DiffSummary(breaking, changes.Count - breaking) };
-            report.Complete();
-
-            if (settings.FailOnBreaking && breaking > 0)
-            {
-                report.Success = false;
-                report.ExitCode = 1;
-            }
-
-            return report;
-        }, cancellationToken);
+        return ApiCommandRunner.RunAsync(settings, "api diff", (model, target, token) => ApiAnswers.DiffAsync(model, target, settings.Base!, settings.Insecure, settings.FailOnBreaking, token), cancellationToken);
     }
 }
 
@@ -167,16 +118,7 @@ internal sealed class ApiSchemaCommand : AsyncCommand<ApiSchemaCommand.Settings>
 
     protected override Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings, CancellationToken cancellationToken)
     {
-        return ApiCommandRunner.RunAsync(settings, "api schema", model =>
-        {
-            TypeDeclaration? type = ApiLookup.FindType(model, settings.Name);
-            if (type == null)
-            {
-                return ApiReport.Failure("api schema", IssueCodes.SchemaNotFound, $"No type matches \"{settings.Name}\".", ApiLookup.SuggestTypes(model, settings.Name));
-            }
-
-            return new ApiReport { Command = "api schema", Types = ApiLookup.TypeClosure(model, [type.Name], settings.Depth) }.Complete();
-        }, cancellationToken);
+        return ApiCommandRunner.RunAsync(settings, "api schema", model => ApiAnswers.Schema(model, settings.Name, settings.Depth), cancellationToken);
     }
 }
 
@@ -206,7 +148,11 @@ internal static class ApiCommandRunner
         return report.ExitCode;
     }
 
-    private static async Task<ApiReport> BuildReportAsync(ApiSettings settings, string command, Func<ClientModel, ApiTarget, CancellationToken, Task<ApiReport>> answer, CancellationToken cancellationToken)
+    /// <summary>
+    /// Picks the spec, builds the client model and answers. Used by the CLI commands and the MCP tools alike, so both
+    /// give the same report. Cancellation is not caught here.
+    /// </summary>
+    internal static async Task<ApiReport> BuildReportAsync(ApiSettings settings, string command, Func<ClientModel, ApiTarget, CancellationToken, Task<ApiReport>> answer, CancellationToken cancellationToken)
     {
         (ApiTarget? target, Issue? problem) = ResolveTarget(settings);
         if (target == null)
@@ -307,5 +253,75 @@ internal static class ApiCommandRunner
         List<string> skipPaths = client.SkipPaths.Count > 0 ? client.SkipPaths : loaded.Config.Gen.OpenApi.SkipPaths;
 
         return (new ApiTarget(ConfiguredClientRunner.ResolveSource(source, configDirectory), client.Name.Trim(), skipPaths, client.Insecure || settings.Insecure), null);
+    }
+}
+
+/// <summary>The answers of the api commands, from a client model. The CLI commands and the MCP tools both call these.</summary>
+internal static class ApiAnswers
+{
+    public static ApiReport List(ClientModel model, string? filter, string? tag, string? method)
+    {
+        List<ApiListItem> items = ApiLookup.FilterOperations(model, filter, tag, method)
+            .Select(o => new ApiListItem(o.Method, o.Path, o.OperationId, o.Summary, o.Deprecated, o.Tags, o.Call))
+            .ToList();
+
+        return new ApiReport { Command = "api list", Operations = items }.Complete();
+    }
+
+    public static ApiReport Show(ClientModel model, string selector, bool includeTypes)
+    {
+        OperationMatch match = ApiLookup.FindOperation(model, selector);
+
+        if (match.Operation == null)
+        {
+            return ApiReport.Failure("api show", match.ErrorCode!, match.Message!, match.Suggestions);
+        }
+
+        return new ApiReport
+        {
+            Command = "api show",
+            Operation = match.Operation,
+            Types = includeTypes ? ApiLookup.TypeClosure(model, match.Operation.ReferencedTypes) : null,
+        }.Complete();
+    }
+
+    public static ApiReport Schema(ClientModel model, string name, int? depth)
+    {
+        TypeDeclaration? type = ApiLookup.FindType(model, name);
+        if (type == null)
+        {
+            return ApiReport.Failure("api schema", IssueCodes.SchemaNotFound, $"No type matches \"{name}\".", ApiLookup.SuggestTypes(model, name));
+        }
+
+        return new ApiReport { Command = "api schema", Types = ApiLookup.TypeClosure(model, [type.Name], depth) }.Complete();
+    }
+
+    /// <summary>Compares the base spec with the current model. With failOnBreaking a breaking change fails the report (exit code 1).</summary>
+    public static async Task<ApiReport> DiffAsync(ClientModel model, ApiTarget target, string baseSpec, bool insecure, bool failOnBreaking, CancellationToken cancellationToken)
+    {
+        (string? content, string? displayPath, Issue? problem) = await ApiBaseLoader.LoadAsync(baseSpec, target, insecure, cancellationToken).ConfigureAwait(false);
+        if (content == null)
+        {
+            return ApiReport.Failure("api diff", problem!.Code, problem.Message);
+        }
+
+        (ClientModel? baseModel, Issue? baseProblem) = ApiCommandRunner.BuildModel(content, displayPath!, target);
+        if (baseModel == null)
+        {
+            return ApiReport.Failure("api diff", baseProblem!.Code, "Base spec: " + baseProblem.Message);
+        }
+
+        List<ApiChange> changes = ApiDiff.Compare(baseModel, model);
+        int breaking = changes.Count(c => c.Severity == ChangeSeverity.Breaking);
+        ApiReport report = new() { Command = "api diff", Changes = changes, Summary = new DiffSummary(breaking, changes.Count - breaking) };
+        report.Complete();
+
+        if (failOnBreaking && breaking > 0)
+        {
+            report.Success = false;
+            report.ExitCode = 1;
+        }
+
+        return report;
     }
 }

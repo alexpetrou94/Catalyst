@@ -15,12 +15,18 @@ internal static class ConfiguredClientRunner
         CatalystConfig config,
         string configDirectory,
         CancellationToken cancellationToken,
-        bool check = false)
+        bool check = false,
+        string? onlyClient = null)
     {
         List<ClientResult> results = [];
 
         foreach (OpenApiClientConfig client in config.Gen.OpenApi.Clients)
         {
+            if (!string.IsNullOrWhiteSpace(onlyClient) && !(client.Name?.Trim().Equals(onlyClient.Trim(), StringComparison.OrdinalIgnoreCase) ?? false))
+            {
+                continue;
+            }
+
             results.Add(await GenerateClient(client, config, configDirectory, check, cancellationToken).ConfigureAwait(false));
         }
 

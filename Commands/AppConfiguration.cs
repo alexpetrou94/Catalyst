@@ -1,5 +1,6 @@
 using Catalyst.Commands.Api;
 using Catalyst.Commands.Gen;
+using Catalyst.Commands.Mcp;
 using Spectre.Console.Cli;
 
 namespace Catalyst.Commands;
@@ -12,6 +13,9 @@ internal static class AppConfiguration
         // Unknown options and stray arguments are errors, and every usage error exits with the same code.
         UsageErrors.Configure(config, args);
         config.SetApplicationVersion(version);
+        config.AddCommand<McpCommand>("mcp")
+            .WithDescription("Runs a Model Context Protocol server over stdio, so AI agents (Claude Code, Claude Desktop, Cursor, VS Code) can call Catalyst's lookup, diff and generate tools.")
+            .WithExample("mcp");
         config.AddBranch("api", api =>
         {
             api.SetDescription("Look up operations and types of an API, with the names and types of the generated client");

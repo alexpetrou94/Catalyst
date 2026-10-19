@@ -401,6 +401,9 @@ edit it by hand and do not read the spec or the whole generated file to find an 
   writing anything, run `catalyst gen openapi --check` (exit code 1 means out of date).
 - After changing a backend endpoint, run `catalyst api diff --client <name> --base git:HEAD` to see what breaks for
   the frontend before regenerating (`--fail-on-breaking` turns breaking changes into exit code 1).
+- If the Catalyst MCP server is available (`catalyst mcp`), use its tools instead of the commands above:
+  `list_clients`, `list_operations`, `show_operation`, `show_type`, `diff_spec` and `generate_clients` (with
+  `check: true` to verify without writing). They return the same information as the CLI's `--json`.
 ```
 
 ## Detecting breaking API changes
@@ -495,6 +498,73 @@ text, so a renamed type shows up as a changed type plus a removed and an added t
 | `TYPE_MEMBER_REMOVED` / `TYPE_MEMBER_ADDED` | breaking / non-breaking | An enum, literal union or union lost or gained a member (also for a property whose type is a literal union) |
 
 Errors use the usual envelope; the extra code is `BASE_NOT_FOUND`.
+
+## Using Catalyst from AI agents (MCP)
+
+`catalyst mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio, so agents such as
+Claude Code, Claude Desktop, Cursor and VS Code can call Catalyst directly instead of running CLI commands. The server
+starts in the directory the agent launches it from (normally your repository), and `catalyst.config.json` is found from
+there, exactly like on the command line. Every tool call is independent: the config and the spec are read again each time.
+stdout carries only protocol messages; logs go to stderr.
+
+Each tool wraps the code of the matching CLI command and returns the same JSON as `--json` (as MCP structured content),
+plus the CLI's text output as the text content. Failures are MCP tool errors carrying the same error code, message and
+suggestions as the CLI JSON.
+
+| Tool | CLI equivalent | Use it to |
+| --- | --- | --- |
+| `list_clients` | reads `catalyst.config.json` | learn which `client` names exist (name, source, output) |
+| `list_operations` `{ client?, source?, filter?, tag?, method? }` | `api list` | find an endpoint |
+| `show_operation` `{ operation, client?, source?, includeTypes? }` | `api show` | see how to call it and which types it uses |
+| `show_type` `{ name, client?, source?, depth? }` | `api schema` | see one type and its dependencies |
+| `diff_spec` `{ base, client?, source? }` | `api diff` | find out what a spec change breaks; it reports changes and never fails because of them |
+| `generate_clients` `{ client?, check? }` | `gen openapi` / `gen openapi --check` | regenerate one or all configured clients, or only check them |
+
+Which API a tool uses is selected like on the command line: `client` (a configured name), `source` (a file or URL), or
+the only configured client when neither is given.
+
+Two deliberate limits keep the write surface to what the repository already declares: `generate_clients` only writes the
+output files of **configured** clients (there is no way to pass an output path), and there is **no `insecure` option**: a
+`source` URL is always validated, and only a configured client's own `insecure` setting relaxes TLS validation.
+
+Setup:
+
+```bash
+# Claude Code
+claude mcp add catalyst -- catalyst mcp
+```
+
+Project-level `.mcp.json` (Claude Code), or `.cursor/mcp.json` (Cursor):
+
+```json
+{
+  "mcpServers": {
+    "catalyst": { "command": "catalyst", "args": ["mcp"] }
+  }
+}
+```
+
+VS Code, `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "catalyst": { "type": "stdio", "command": "catalyst", "args": ["mcp"] }
+  }
+}
+```
+
+Claude Desktop (`claude_desktop_config.json`) does not start servers in your repository, so change into it first:
+
+```json
+{
+  "mcpServers": {
+    "catalyst": { "command": "sh", "args": ["-c", "cd /path/to/your/repo && catalyst mcp"] }
+  }
+}
+```
+
+(On Windows use `"command": "cmd"` and `"args": ["/c", "cd /d C:\\path\\to\\repo && catalyst mcp"]`.)
 
 ## Releases
 

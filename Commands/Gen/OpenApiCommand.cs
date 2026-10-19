@@ -217,7 +217,7 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
     }
 
     /// <summary>Generates or checks every client defined under gen.openapi.clients in the nearest catalyst.config.json.</summary>
-    private static async Task<RunReport> BuildConfiguredReportAsync(string mode, CancellationToken cancellationToken)
+    internal static async Task<RunReport> BuildConfiguredReportAsync(string mode, CancellationToken cancellationToken, string? clientName = null)
     {
         ConfigLoadResult loadResult = ConfigLoader.LoadDetailed(Directory.GetCurrentDirectory());
 
@@ -236,11 +236,17 @@ internal sealed class OpenApiCommand : AsyncCommand<OpenApiCommand.Settings>
             return RunReport.Failure(mode, IssueCodes.NoClients, $"{loadResult.Path} defines no clients under gen.openapi.clients.");
         }
 
+        if (!string.IsNullOrWhiteSpace(clientName)
+            && !loadResult.Config.Gen.OpenApi.Clients.Any(c => c.Name.Trim().Equals(clientName.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            return RunReport.Failure(mode, IssueCodes.Usage, $"No client named \"{clientName}\" in {loadResult.Path}. Configured clients: {string.Join(", ", loadResult.Config.Gen.OpenApi.Clients.Select(c => c.Name))}.");
+        }
+
         string configDirectory = Path.GetDirectoryName(loadResult.Path)!;
 
         RunReport report = new() { Mode = mode, ConfigPath = loadResult.Path };
         report.Results.AddRange(await ConfiguredClientRunner
-            .RunAsync(loadResult.Config, configDirectory, cancellationToken, check: mode == RunMode.Check)
+            .RunAsync(loadResult.Config, configDirectory, cancellationToken, check: mode == RunMode.Check, onlyClient: clientName)
             .ConfigureAwait(false));
         return report.Complete();
     }
