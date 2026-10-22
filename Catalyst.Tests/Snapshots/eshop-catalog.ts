@@ -229,67 +229,67 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
              * Batch get catalog items
              */
             async batchGetItems(ids: (string | number)[], apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogItem[]>> {
-                return request<CatalogItem[]>('/api/catalog/items/by', 'get', { params: { ids, "api-version": apiVersion }, headers, signal });
+                return request<CatalogItem[]>('/api/catalog/items/by', 'GET', { params: { ids, "api-version": apiVersion }, headers, signal });
             },
             /**
              * Get catalog item
              */
             async item(id: number, apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogItem>> {
-                return request<CatalogItem>(`/api/catalog/items/${encodeURIComponent(id)}`, 'get', { params: { "api-version": apiVersion }, headers, signal });
+                return request<CatalogItem>(`/api/catalog/items/${encodeURIComponent(id)}`, 'GET', { params: { "api-version": apiVersion }, headers, signal });
             },
             /**
              * Get catalog item picture
              */
             async itemPicture(id: number, apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Blob>> {
-                return request<Blob>(`/api/catalog/items/${encodeURIComponent(id)}/pic`, 'get', { params: { "api-version": apiVersion }, responseType: "blob", headers, signal });
+                return request<Blob>(`/api/catalog/items/${encodeURIComponent(id)}/pic`, 'GET', { params: { "api-version": apiVersion }, responseType: "blob", headers, signal });
             },
             /**
              * Get catalog facet counts
              */
             async catalogFacets(apiVersion: "1.0", type?: (string | number)[], brand?: (string | number)[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogFacets>> {
-                return request<CatalogFacets>('/api/catalog/items/facets', 'get', { params: { type, brand, "api-version": apiVersion }, headers, signal });
+                return request<CatalogFacets>('/api/catalog/items/facets', 'GET', { params: { type, brand, "api-version": apiVersion }, headers, signal });
             },
             /**
              * List catalog item types
              */
             async listItemTypes(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogType[]>> {
-                return request<CatalogType[]>('/api/catalog/catalogtypes', 'get', { params: { "api-version": apiVersion }, headers, signal });
+                return request<CatalogType[]>('/api/catalog/catalogtypes', 'GET', { params: { "api-version": apiVersion }, headers, signal });
             },
             /**
              * List catalog item brands
              */
             async listItemBrands(apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CatalogBrand[]>> {
-                return request<CatalogBrand[]>('/api/catalog/catalogbrands', 'get', { params: { "api-version": apiVersion }, headers, signal });
+                return request<CatalogBrand[]>('/api/catalog/catalogbrands', 'GET', { params: { "api-version": apiVersion }, headers, signal });
             },
             /**
              * List catalog items
              */
             async listItems(apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>> {
-                return request<PaginatedItemsOfCatalogItem>('/api/catalog/items', 'get', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
+                return request<PaginatedItemsOfCatalogItem>('/api/catalog/items', 'GET', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
             },
             /**
              * Get catalog items by name
              */
             async itemsByName(name: string, apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>> {
-                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/by/${encodeURIComponent(name)}`, 'get', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
+                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/by/${encodeURIComponent(name)}`, 'GET', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
             },
             /**
              * Search catalog for relevant items
              */
             async relevantItems(text: string, apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>> {
-                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/withsemanticrelevance/${encodeURIComponent(text)}`, 'get', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
+                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/withsemanticrelevance/${encodeURIComponent(text)}`, 'GET', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
             },
             /**
              * Get catalog items by type and brand
              */
             async itemsByTypeAndBrand(typeId: string | number, brandId: string | number, apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>> {
-                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/type/${encodeURIComponent(typeId)}/brand/${encodeURIComponent(brandId)}`, 'get', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
+                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/type/${encodeURIComponent(typeId)}/brand/${encodeURIComponent(brandId)}`, 'GET', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
             },
             /**
              * List catalog items by brand
              */
             async itemsByBrand(brandId: string | number, apiVersion: "1.0", PageSize?: string | number, PageIndex?: string | number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PaginatedItemsOfCatalogItem>> {
-                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/type/all/brand/${encodeURIComponent(brandId)}`, 'get', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
+                return request<PaginatedItemsOfCatalogItem>(`/api/catalog/items/type/all/brand/${encodeURIComponent(brandId)}`, 'GET', { params: { PageSize, PageIndex, "api-version": apiVersion }, headers, signal });
             },
         },
         delete: {
@@ -297,7 +297,7 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
              * Delete catalog item
              */
             async item(id: number, apiVersion: "1.0", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/api/catalog/items/${encodeURIComponent(id)}`, 'delete', { params: { "api-version": apiVersion }, headers, signal });
+                return request<void>(`/api/catalog/items/${encodeURIComponent(id)}`, 'DELETE', { params: { "api-version": apiVersion }, headers, signal });
             },
         },
         post: {
@@ -305,7 +305,7 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
              * Create a catalog item
              */
             async createItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/catalog/items', 'post', { params: { "api-version": apiVersion }, body, headers, signal });
+                return request<void>('/api/catalog/items', 'POST', { params: { "api-version": apiVersion }, body, headers, signal });
             },
         },
         put: {
@@ -313,7 +313,7 @@ export function createClient(options: ClientOptions = {}): EShopCatalogHttpApiCl
              * Create or replace a catalog item
              */
             async updateItem(apiVersion: "1.0", body: CatalogItem, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/catalog/items', 'put', { params: { "api-version": apiVersion }, body, headers, signal });
+                return request<void>('/api/catalog/items', 'PUT', { params: { "api-version": apiVersion }, body, headers, signal });
             },
         },
     };

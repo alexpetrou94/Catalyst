@@ -182,44 +182,44 @@ export function createClient(options: ClientOptions = {}): MinimalApiClient {
              * List widgets
              */
             async widgets(limit?: number, _class?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Widget[]>> {
-                return request<Widget[]>('/widgets', 'get', { params: { limit, class: _class }, headers, signal });
+                return request<Widget[]>('/widgets', 'GET', { params: { limit, class: _class }, headers, signal });
             },
             async widgetsId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Widget>> {
-                return request<Widget>(`/widgets/${encodeURIComponent(id)}`, 'get', { headers, signal });
+                return request<Widget>(`/widgets/${encodeURIComponent(id)}`, 'GET', { headers, signal });
             },
             async ping(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>> {
-                return request<string>('/ping', 'get', { headers, signal });
+                return request<string>('/ping', 'GET', { headers, signal });
             },
             async search(q: string, userId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/search', 'get', { params: { q, "user-id": userId }, headers, signal });
+                return request<void>('/search', 'GET', { params: { q, "user-id": userId }, headers, signal });
             },
             async count(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<number>> {
-                return request<number>('/count', 'get', { headers, signal });
+                return request<number>('/count', 'GET', { headers, signal });
             },
             async flag(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean>> {
-                return request<boolean>('/flag', 'get', { headers, signal });
+                return request<boolean>('/flag', 'GET', { headers, signal });
             },
             async items(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string[]>> {
-                return request<string[]>('/items', 'get', { headers, signal });
+                return request<string[]>('/items', 'GET', { headers, signal });
             },
             async nested(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetNestedResponse>> {
-                return request<GetNestedResponse>('/nested', 'get', { headers, signal });
+                return request<GetNestedResponse>('/nested', 'GET', { headers, signal });
             },
         },
         post: {
             async widgets(body: Widget, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Widget>> {
-                return request<Widget>('/widgets', 'post', { body, headers, signal });
+                return request<Widget>('/widgets', 'POST', { body, headers, signal });
             },
             async echo(body: PostEchoRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostEchoResponse>> {
-                return request<PostEchoResponse>('/echo', 'post', { body, headers, signal });
+                return request<PostEchoResponse>('/echo', 'POST', { body, headers, signal });
             },
             async void(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/void', 'post', { headers, signal });
+                return request<void>('/void', 'POST', { headers, signal });
             },
         },
         delete: {
             async widgetsId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/widgets/${encodeURIComponent(id)}`, 'delete', { headers, signal });
+                return request<void>(`/widgets/${encodeURIComponent(id)}`, 'DELETE', { headers, signal });
             },
         },
     };

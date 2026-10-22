@@ -1106,7 +1106,7 @@ internal sealed class TypeScriptGenerator
                                     }
 
                                     m.Returns($"Promise<ApiResult<{operation.ReturnType}>>");
-                                    m.Body(fn => fn.Return($"request<{operation.ReturnType}>({BuildUrl(operation)}, '{operation.HttpMethod}'{BuildInitArgument(operation)})"));
+                                    m.Body(fn => fn.Return($"request<{operation.ReturnType}>({BuildUrl(operation)}, '{operation.HttpMethod.ToUpperInvariant()}'{BuildInitArgument(operation)})"));
                                 });
                             }
                         });

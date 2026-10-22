@@ -268,62 +268,62 @@ export function createClient(options: ClientOptions = {}): EnterpriseApiClient {
     return {
         get: {
             async health(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/health', 'get', { headers, signal });
+                return request<void>('/health', 'GET', { headers, signal });
             },
             async media(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMediaResponseItem[]>> {
-                return request<GetMediaResponseItem[]>('/api/media/', 'get', { headers, signal });
+                return request<GetMediaResponseItem[]>('/api/media/', 'GET', { headers, signal });
             },
             async mediaSignedUrl(uid: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMediaSignedUrlResponse>> {
-                return request<GetMediaSignedUrlResponse>('/api/media/signed-url', 'get', { params: { uid }, headers, signal });
+                return request<GetMediaSignedUrlResponse>('/api/media/signed-url', 'GET', { params: { uid }, headers, signal });
             },
             async auth(param: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/api/auth/${encodeURIComponent(param)}`, 'get', { headers, signal });
+                return request<void>(`/api/auth/${encodeURIComponent(param)}`, 'GET', { headers, signal });
             },
             async userPermissionsList(userId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/user-permissions/list', 'get', { params: { userId }, headers, signal });
+                return request<void>('/api/user-permissions/list', 'GET', { params: { userId }, headers, signal });
             },
             async userPermissionsCheck(userId: string, permission: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/user-permissions/check', 'get', { params: { userId, permission }, headers, signal });
+                return request<void>('/api/user-permissions/check', 'GET', { params: { userId, permission }, headers, signal });
             },
             async appContext(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetAppContextResponse>> {
-                return request<GetAppContextResponse>('/api/app-context/', 'get', { headers, signal });
+                return request<GetAppContextResponse>('/api/app-context/', 'GET', { headers, signal });
             },
             async device(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetDeviceResponseItem[]>> {
-                return request<GetDeviceResponseItem[]>('/api/device/', 'get', { headers, signal });
+                return request<GetDeviceResponseItem[]>('/api/device/', 'GET', { headers, signal });
             },
         },
         post: {
             async mediaUpload(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostMediaUploadResponse>> {
-                return request<PostMediaUploadResponse>('/api/media/upload', 'post', { headers, signal });
+                return request<PostMediaUploadResponse>('/api/media/upload', 'POST', { headers, signal });
             },
             async register(body: PostRegisterRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/register', 'post', { body, headers, signal });
+                return request<void>('/api/register', 'POST', { body, headers, signal });
             },
             async auth(param: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/api/auth/${encodeURIComponent(param)}`, 'post', { headers, signal });
+                return request<void>(`/api/auth/${encodeURIComponent(param)}`, 'POST', { headers, signal });
             },
             async userPermissionsSet(body: PostUserPermissionsSetRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/user-permissions/set', 'post', { body, headers, signal });
+                return request<void>('/api/user-permissions/set', 'POST', { body, headers, signal });
             },
             async userPermissionsAdd(body: PostUserPermissionsAddRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/user-permissions/add', 'post', { body, headers, signal });
+                return request<void>('/api/user-permissions/add', 'POST', { body, headers, signal });
             },
             async userPermissionsRemove(body: PostUserPermissionsRemoveRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/api/user-permissions/remove', 'post', { body, headers, signal });
+                return request<void>('/api/user-permissions/remove', 'POST', { body, headers, signal });
             },
             async deviceRequestPair(body: PostDeviceRequestPairRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostDeviceRequestPairResponse>> {
-                return request<PostDeviceRequestPairResponse>('/api/device/request-pair', 'post', { body, headers, signal });
+                return request<PostDeviceRequestPairResponse>('/api/device/request-pair', 'POST', { body, headers, signal });
             },
             async devicePair(body: PostDevicePairRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PostDevicePairResponse>> {
-                return request<PostDevicePairResponse>('/api/device/pair', 'post', { body, headers, signal });
+                return request<PostDevicePairResponse>('/api/device/pair', 'POST', { body, headers, signal });
             },
         },
         delete: {
             async mediaId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<DeleteMediaIdResponse>> {
-                return request<DeleteMediaIdResponse>(`/api/media/${encodeURIComponent(id)}`, 'delete', { headers, signal });
+                return request<DeleteMediaIdResponse>(`/api/media/${encodeURIComponent(id)}`, 'DELETE', { headers, signal });
             },
             async deviceId(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<DeleteDeviceIdResponse>> {
-                return request<DeleteDeviceIdResponse>(`/api/device/${encodeURIComponent(id)}`, 'delete', { headers, signal });
+                return request<DeleteDeviceIdResponse>(`/api/device/${encodeURIComponent(id)}`, 'DELETE', { headers, signal });
             },
         },
     };

@@ -294,16 +294,16 @@ export function createClient(options: ClientOptions = {}): EdgeCasesClient {
              * Create an item
              */
             async items(body: Item_Dto, notify?: boolean, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Item_Dto>> {
-                return request<Item_Dto>('/items', 'post', { params: { notify }, body, headers, signal });
+                return request<Item_Dto>('/items', 'POST', { params: { notify }, body, headers, signal });
             },
             async postcodeLookup(body: PostcodeLookupRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Id>> {
-                return request<Id>('/postcodes', 'post', { body, bodyType: "form", headers, signal });
+                return request<Id>('/postcodes', 'POST', { body, bodyType: "form", headers, signal });
             },
             async createUpload(body: CreateUploadRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/uploads', 'post', { body, bodyType: "form", headers, signal });
+                return request<void>('/uploads', 'POST', { body, bodyType: "form", headers, signal });
             },
             async createLogin(body: CreateLoginRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/forms/login', 'post', { body, bodyType: "urlencoded", headers, signal });
+                return request<void>('/forms/login', 'POST', { body, bodyType: "urlencoded", headers, signal });
             },
         },
         get: {
@@ -311,44 +311,44 @@ export function createClient(options: ClientOptions = {}): EdgeCasesClient {
              * Get an item. Mentions a *\/ comment terminator
              */
             async itemsId(id: string, apiVersion: string, pageSize?: number, queryRequest?: string, queryId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Item_Dto>> {
-                return request<Item_Dto>(`/items/${encodeURIComponent(id)}`, 'get', { params: { "page-size": pageSize, "api-version": apiVersion, request: queryRequest, id: queryId }, headers, signal });
+                return request<Item_Dto>(`/items/${encodeURIComponent(id)}`, 'GET', { params: { "page-size": pageSize, "api-version": apiVersion, request: queryRequest, id: queryId }, headers, signal });
             },
             async ordersOrderIdLinesLineNo(orderId: number, lineNo: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Wrapper>> {
-                return request<Wrapper>(`/orders/${encodeURIComponent(orderId)}/lines/${encodeURIComponent(lineNo)}`, 'get', { headers, signal });
+                return request<Wrapper>(`/orders/${encodeURIComponent(orderId)}/lines/${encodeURIComponent(lineNo)}`, 'GET', { headers, signal });
             },
             async search(kind: Quoted, tags?: string[], queryBody?: string, querySignal?: string, queryHeaders?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Tags>> {
-                return request<Tags>('/search', 'get', { params: { tags, body: queryBody, signal: querySignal, headers: queryHeaders, kind }, headers, signal });
+                return request<Tags>('/search', 'GET', { params: { tags, body: queryBody, signal: querySignal, headers: queryHeaders, kind }, headers, signal });
             },
             async ping(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>> {
-                return request<string>('/ping', 'get', { headers, signal });
+                return request<string>('/ping', 'GET', { headers, signal });
             },
             async bag(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Bag>> {
-                return request<Bag>('/bag', 'get', { headers, signal });
+                return request<Bag>('/bag', 'GET', { headers, signal });
             },
             async defaultOnly(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Base>> {
-                return request<Base>('/default-only', 'get', { headers, signal });
+                return request<Base>('/default-only', 'GET', { headers, signal });
             },
             async successAndDefault(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Base>> {
-                return request<Base>('/success-and-default', 'get', { headers, signal });
+                return request<Base>('/success-and-default', 'GET', { headers, signal });
             },
             async avatar(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Blob>> {
-                return request<Blob>(`/avatars/${encodeURIComponent(id)}`, 'get', { responseType: "blob", headers, signal });
+                return request<Blob>(`/avatars/${encodeURIComponent(id)}`, 'GET', { responseType: "blob", headers, signal });
             },
             async internalHealth(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/internal/health', 'get', { headers, signal });
+                return request<void>('/internal/health', 'GET', { headers, signal });
             },
         },
         put: {
             async itemsId(id: string, body: Derived, dryRun?: boolean, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/items/${encodeURIComponent(id)}`, 'put', { params: { dryRun }, body, headers, signal });
+                return request<void>(`/items/${encodeURIComponent(id)}`, 'PUT', { params: { dryRun }, body, headers, signal });
             },
             async notes(body: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/notes', 'put', { body, bodyType: "text", headers, signal });
+                return request<void>('/notes', 'PUT', { body, bodyType: "text", headers, signal });
             },
         },
         delete: {
             async defaultEmpty(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/default-empty', 'delete', { headers, signal });
+                return request<void>('/default-empty', 'DELETE', { headers, signal });
             },
         },
     };

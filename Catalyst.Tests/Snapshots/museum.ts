@@ -284,25 +284,25 @@ export function createClient(options: ClientOptions = {}): RedoclyMuseumApiClien
              * Get museum hours
              */
             async museumHours(startDate?: string, page?: number, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<MuseumHours>> {
-                return request<MuseumHours>('/museum-hours', 'get', { params: { startDate, page, limit }, headers, signal });
+                return request<MuseumHours>('/museum-hours', 'GET', { params: { startDate, page, limit }, headers, signal });
             },
             /**
              * List special events
              */
             async listSpecialEvents(startDate?: string, endDate?: string, page?: number, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEventCollection>> {
-                return request<SpecialEventCollection>('/special-events', 'get', { params: { startDate, endDate, page, limit }, headers, signal });
+                return request<SpecialEventCollection>('/special-events', 'GET', { params: { startDate, endDate, page, limit }, headers, signal });
             },
             /**
              * Get special event
              */
             async specialEvent(eventId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>> {
-                return request<SpecialEvent>(`/special-events/${encodeURIComponent(eventId)}`, 'get', { headers, signal });
+                return request<SpecialEvent>(`/special-events/${encodeURIComponent(eventId)}`, 'GET', { headers, signal });
             },
             /**
              * Get ticket QR code
              */
             async ticketCode(ticketId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Blob>> {
-                return request<Blob>(`/tickets/${encodeURIComponent(ticketId)}/qr`, 'get', { responseType: "blob", headers, signal });
+                return request<Blob>(`/tickets/${encodeURIComponent(ticketId)}/qr`, 'GET', { responseType: "blob", headers, signal });
             },
         },
         post: {
@@ -310,13 +310,13 @@ export function createClient(options: ClientOptions = {}): RedoclyMuseumApiClien
              * Create special events
              */
             async createSpecialEvent(body: SpecialEvent, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>> {
-                return request<SpecialEvent>('/special-events', 'post', { body, headers, signal });
+                return request<SpecialEvent>('/special-events', 'POST', { body, headers, signal });
             },
             /**
              * Buy museum tickets
              */
             async buyMuseumTickets(body: BuyMuseumTickets, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<MuseumTicketsConfirmation>> {
-                return request<MuseumTicketsConfirmation>('/tickets', 'post', { body, headers, signal });
+                return request<MuseumTicketsConfirmation>('/tickets', 'POST', { body, headers, signal });
             },
         },
         patch: {
@@ -324,7 +324,7 @@ export function createClient(options: ClientOptions = {}): RedoclyMuseumApiClien
              * Update special event
              */
             async updateSpecialEvent(eventId: string, body: SpecialEventFields, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SpecialEvent>> {
-                return request<SpecialEvent>(`/special-events/${encodeURIComponent(eventId)}`, 'patch', { body, headers, signal });
+                return request<SpecialEvent>(`/special-events/${encodeURIComponent(eventId)}`, 'PATCH', { body, headers, signal });
             },
         },
         delete: {
@@ -332,7 +332,7 @@ export function createClient(options: ClientOptions = {}): RedoclyMuseumApiClien
              * Delete special event
              */
             async specialEvent(eventId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/special-events/${encodeURIComponent(eventId)}`, 'delete', { headers, signal });
+                return request<void>(`/special-events/${encodeURIComponent(eventId)}`, 'DELETE', { headers, signal });
             },
         },
     };

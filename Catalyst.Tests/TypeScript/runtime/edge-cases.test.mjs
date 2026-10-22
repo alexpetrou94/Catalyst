@@ -97,7 +97,7 @@ describe("request body", () => {
         await withFetch(ok, async (calls) => {
             await createClient().post.items({ "x-trace": "t" });
             const call = calls[0];
-            assert.equal(call.init.method, "post");
+            assert.equal(call.init.method, "POST");
             assert.equal(call.init.body, JSON.stringify({ "x-trace": "t" }));
             assert.equal(call.init.headers["Content-Type"], "application/json");
         });

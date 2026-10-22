@@ -231,13 +231,13 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
              * Update an existing pet.
              */
             async updatePet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
-                return request<Pet>('/pet', 'put', { body, headers, signal });
+                return request<Pet>('/pet', 'PUT', { body, headers, signal });
             },
             /**
              * Update user resource.
              */
             async updateUser(username: string, body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/user/${encodeURIComponent(username)}`, 'put', { body, headers, signal });
+                return request<void>(`/user/${encodeURIComponent(username)}`, 'PUT', { body, headers, signal });
             },
         },
         post: {
@@ -245,37 +245,37 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
              * Add a new pet to the store.
              */
             async addPet(body: Pet, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
-                return request<Pet>('/pet', 'post', { body, headers, signal });
+                return request<Pet>('/pet', 'POST', { body, headers, signal });
             },
             /**
              * Updates a pet in the store with form data.
              */
             async updatePetWithForm(petId: number, name?: string, status?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
-                return request<Pet>(`/pet/${encodeURIComponent(petId)}`, 'post', { params: { name, status }, headers, signal });
+                return request<Pet>(`/pet/${encodeURIComponent(petId)}`, 'POST', { params: { name, status }, headers, signal });
             },
             /**
              * Uploads an image.
              */
             async uploadFile(petId: number, body: Blob, additionalMetadata?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ApiResponse>> {
-                return request<ApiResponse>(`/pet/${encodeURIComponent(petId)}/uploadImage`, 'post', { params: { additionalMetadata }, body, bodyType: "binary", headers, signal });
+                return request<ApiResponse>(`/pet/${encodeURIComponent(petId)}/uploadImage`, 'POST', { params: { additionalMetadata }, body, bodyType: "binary", headers, signal });
             },
             /**
              * Place an order for a pet.
              */
             async placeOrder(body: Order, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Order>> {
-                return request<Order>('/store/order', 'post', { body, headers, signal });
+                return request<Order>('/store/order', 'POST', { body, headers, signal });
             },
             /**
              * Create user.
              */
             async createUser(body: User, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>> {
-                return request<User>('/user', 'post', { body, headers, signal });
+                return request<User>('/user', 'POST', { body, headers, signal });
             },
             /**
              * Creates list of users with given input array.
              */
             async createUsersWithListInput(body: User[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>> {
-                return request<User>('/user/createWithList', 'post', { body, headers, signal });
+                return request<User>('/user/createWithList', 'POST', { body, headers, signal });
             },
         },
         get: {
@@ -283,49 +283,49 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
              * Finds Pets by status.
              */
             async findPetsByStatus(status: "available" | "pending" | "sold", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>> {
-                return request<Pet[]>('/pet/findByStatus', 'get', { params: { status }, headers, signal });
+                return request<Pet[]>('/pet/findByStatus', 'GET', { params: { status }, headers, signal });
             },
             /**
              * Finds Pets by tags.
              */
             async findPetsByTags(tags: string[], headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet[]>> {
-                return request<Pet[]>('/pet/findByTags', 'get', { params: { tags }, headers, signal });
+                return request<Pet[]>('/pet/findByTags', 'GET', { params: { tags }, headers, signal });
             },
             /**
              * Find pet by ID.
              */
             async petById(petId: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Pet>> {
-                return request<Pet>(`/pet/${encodeURIComponent(petId)}`, 'get', { headers, signal });
+                return request<Pet>(`/pet/${encodeURIComponent(petId)}`, 'GET', { headers, signal });
             },
             /**
              * Returns pet inventories by status.
              */
             async inventory(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Record<string, number>>> {
-                return request<Record<string, number>>('/store/inventory', 'get', { headers, signal });
+                return request<Record<string, number>>('/store/inventory', 'GET', { headers, signal });
             },
             /**
              * Find purchase order by ID.
              */
             async orderById(orderId: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<Order>> {
-                return request<Order>(`/store/order/${encodeURIComponent(orderId)}`, 'get', { headers, signal });
+                return request<Order>(`/store/order/${encodeURIComponent(orderId)}`, 'GET', { headers, signal });
             },
             /**
              * Logs user into the system.
              */
             async loginUser(username?: string, password?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<string>> {
-                return request<string>('/user/login', 'get', { params: { username, password }, headers, signal });
+                return request<string>('/user/login', 'GET', { params: { username, password }, headers, signal });
             },
             /**
              * Logs out current logged in user session.
              */
             async logoutUser(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/user/logout', 'get', { headers, signal });
+                return request<void>('/user/logout', 'GET', { headers, signal });
             },
             /**
              * Get user by user name.
              */
             async userByName(username: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<User>> {
-                return request<User>(`/user/${encodeURIComponent(username)}`, 'get', { headers, signal });
+                return request<User>(`/user/${encodeURIComponent(username)}`, 'GET', { headers, signal });
             },
         },
         delete: {
@@ -333,19 +333,19 @@ export function createClient(options: ClientOptions = {}): SwaggerPetstoreOpenAp
              * Deletes a pet.
              */
             async pet(petId: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/pet/${encodeURIComponent(petId)}`, 'delete', { headers, signal });
+                return request<void>(`/pet/${encodeURIComponent(petId)}`, 'DELETE', { headers, signal });
             },
             /**
              * Delete purchase order by identifier.
              */
             async order(orderId: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/store/order/${encodeURIComponent(orderId)}`, 'delete', { headers, signal });
+                return request<void>(`/store/order/${encodeURIComponent(orderId)}`, 'DELETE', { headers, signal });
             },
             /**
              * Delete user resource.
              */
             async user(username: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/user/${encodeURIComponent(username)}`, 'delete', { headers, signal });
+                return request<void>(`/user/${encodeURIComponent(username)}`, 'DELETE', { headers, signal });
             },
         },
     };

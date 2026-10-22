@@ -1177,349 +1177,349 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
              * Get Several Albums
              */
             async multipleAlbums(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMultipleAlbumsResponse>> {
-                return request<GetMultipleAlbumsResponse>('/albums', 'get', { params: { ids, market }, headers, signal });
+                return request<GetMultipleAlbumsResponse>('/albums', 'GET', { params: { ids, market }, headers, signal });
             },
             /**
              * Get Album
              */
             async anAlbum(id: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AlbumObject>> {
-                return request<AlbumObject>(`/albums/${encodeURIComponent(id)}`, 'get', { params: { market }, headers, signal });
+                return request<AlbumObject>(`/albums/${encodeURIComponent(id)}`, 'GET', { params: { market }, headers, signal });
             },
             /**
              * Get Album Tracks
              */
             async anAlbumsTracks(id: string, market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSimplifiedTrackObject>> {
-                return request<PagingSimplifiedTrackObject>(`/albums/${encodeURIComponent(id)}/tracks`, 'get', { params: { market, limit, offset }, headers, signal });
+                return request<PagingSimplifiedTrackObject>(`/albums/${encodeURIComponent(id)}/tracks`, 'GET', { params: { market, limit, offset }, headers, signal });
             },
             /**
              * Get Several Artists
              */
             async multipleArtists(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMultipleArtistsResponse>> {
-                return request<GetMultipleArtistsResponse>('/artists', 'get', { params: { ids }, headers, signal });
+                return request<GetMultipleArtistsResponse>('/artists', 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get Artist
              */
             async anArtist(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ArtistObject>> {
-                return request<ArtistObject>(`/artists/${encodeURIComponent(id)}`, 'get', { headers, signal });
+                return request<ArtistObject>(`/artists/${encodeURIComponent(id)}`, 'GET', { headers, signal });
             },
             /**
              * Get Artist's Albums
              */
             async anArtistsAlbums(id: string, includeGroups?: string, market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSimplifiedAlbumObject>> {
-                return request<PagingSimplifiedAlbumObject>(`/artists/${encodeURIComponent(id)}/albums`, 'get', { params: { include_groups: includeGroups, market, limit, offset }, headers, signal });
+                return request<PagingSimplifiedAlbumObject>(`/artists/${encodeURIComponent(id)}/albums`, 'GET', { params: { include_groups: includeGroups, market, limit, offset }, headers, signal });
             },
             /**
              * Get Artist's Related Artists
              */
             async anArtistsRelatedArtists(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetAnArtistsRelatedArtistsResponse>> {
-                return request<GetAnArtistsRelatedArtistsResponse>(`/artists/${encodeURIComponent(id)}/related-artists`, 'get', { headers, signal });
+                return request<GetAnArtistsRelatedArtistsResponse>(`/artists/${encodeURIComponent(id)}/related-artists`, 'GET', { headers, signal });
             },
             /**
              * Get Artist's Top Tracks
              */
             async anArtistsTopTracks(id: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetAnArtistsTopTracksResponse>> {
-                return request<GetAnArtistsTopTracksResponse>(`/artists/${encodeURIComponent(id)}/top-tracks`, 'get', { params: { market }, headers, signal });
+                return request<GetAnArtistsTopTracksResponse>(`/artists/${encodeURIComponent(id)}/top-tracks`, 'GET', { params: { market }, headers, signal });
             },
             /**
              * Get Track's Audio Analysis
              */
             async audioAnalysis(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AudioAnalysisObject>> {
-                return request<AudioAnalysisObject>(`/audio-analysis/${encodeURIComponent(id)}`, 'get', { headers, signal });
+                return request<AudioAnalysisObject>(`/audio-analysis/${encodeURIComponent(id)}`, 'GET', { headers, signal });
             },
             /**
              * Get Tracks' Audio Features
              */
             async severalAudioFeatures(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetSeveralAudioFeaturesResponse>> {
-                return request<GetSeveralAudioFeaturesResponse>('/audio-features', 'get', { params: { ids }, headers, signal });
+                return request<GetSeveralAudioFeaturesResponse>('/audio-features', 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get Track's Audio Features
              */
             async audioFeatures(id: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AudioFeaturesObject>> {
-                return request<AudioFeaturesObject>(`/audio-features/${encodeURIComponent(id)}`, 'get', { headers, signal });
+                return request<AudioFeaturesObject>(`/audio-features/${encodeURIComponent(id)}`, 'GET', { headers, signal });
             },
             /**
              * Get Several Audiobooks
              */
             async multipleAudiobooks(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMultipleAudiobooksResponse>> {
-                return request<GetMultipleAudiobooksResponse>('/audiobooks', 'get', { params: { ids, market }, headers, signal });
+                return request<GetMultipleAudiobooksResponse>('/audiobooks', 'GET', { params: { ids, market }, headers, signal });
             },
             /**
              * Get an Audiobook
              */
             async anAudiobook(id: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AudiobookObject>> {
-                return request<AudiobookObject>(`/audiobooks/${encodeURIComponent(id)}`, 'get', { params: { market }, headers, signal });
+                return request<AudiobookObject>(`/audiobooks/${encodeURIComponent(id)}`, 'GET', { params: { market }, headers, signal });
             },
             /**
              * Get Audiobook Chapters
              */
             async audiobookChapters(id: string, market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSimplifiedChapterObject>> {
-                return request<PagingSimplifiedChapterObject>(`/audiobooks/${encodeURIComponent(id)}/chapters`, 'get', { params: { market, limit, offset }, headers, signal });
+                return request<PagingSimplifiedChapterObject>(`/audiobooks/${encodeURIComponent(id)}/chapters`, 'GET', { params: { market, limit, offset }, headers, signal });
             },
             /**
              * Get Several Browse Categories
              */
             async categories(country?: string, locale?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetCategoriesResponse>> {
-                return request<GetCategoriesResponse>('/browse/categories', 'get', { params: { country, locale, limit, offset }, headers, signal });
+                return request<GetCategoriesResponse>('/browse/categories', 'GET', { params: { country, locale, limit, offset }, headers, signal });
             },
             /**
              * Get Single Browse Category
              */
             async aCategory(categoryId: string, country?: string, locale?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CategoryObject>> {
-                return request<CategoryObject>(`/browse/categories/${encodeURIComponent(categoryId)}`, 'get', { params: { country, locale }, headers, signal });
+                return request<CategoryObject>(`/browse/categories/${encodeURIComponent(categoryId)}`, 'GET', { params: { country, locale }, headers, signal });
             },
             /**
              * Get Category's Playlists
              */
             async aCategoriesPlaylists(categoryId: string, country?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingFeaturedPlaylistObject>> {
-                return request<PagingFeaturedPlaylistObject>(`/browse/categories/${encodeURIComponent(categoryId)}/playlists`, 'get', { params: { country, limit, offset }, headers, signal });
+                return request<PagingFeaturedPlaylistObject>(`/browse/categories/${encodeURIComponent(categoryId)}/playlists`, 'GET', { params: { country, limit, offset }, headers, signal });
             },
             /**
              * Get Featured Playlists
              */
             async featuredPlaylists(country?: string, locale?: string, timestamp?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingFeaturedPlaylistObject>> {
-                return request<PagingFeaturedPlaylistObject>('/browse/featured-playlists', 'get', { params: { country, locale, timestamp, limit, offset }, headers, signal });
+                return request<PagingFeaturedPlaylistObject>('/browse/featured-playlists', 'GET', { params: { country, locale, timestamp, limit, offset }, headers, signal });
             },
             /**
              * Get New Releases
              */
             async newReleases(country?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetNewReleasesResponse>> {
-                return request<GetNewReleasesResponse>('/browse/new-releases', 'get', { params: { country, limit, offset }, headers, signal });
+                return request<GetNewReleasesResponse>('/browse/new-releases', 'GET', { params: { country, limit, offset }, headers, signal });
             },
             /**
              * Get Several Chapters
              */
             async severalChapters(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetSeveralChaptersResponse>> {
-                return request<GetSeveralChaptersResponse>('/chapters', 'get', { params: { ids, market }, headers, signal });
+                return request<GetSeveralChaptersResponse>('/chapters', 'GET', { params: { ids, market }, headers, signal });
             },
             /**
              * Get a Chapter
              */
             async aChapter(id: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ChapterObject>> {
-                return request<ChapterObject>(`/chapters/${encodeURIComponent(id)}`, 'get', { params: { market }, headers, signal });
+                return request<ChapterObject>(`/chapters/${encodeURIComponent(id)}`, 'GET', { params: { market }, headers, signal });
             },
             /**
              * Get Several Episodes
              */
             async multipleEpisodes(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMultipleEpisodesResponse>> {
-                return request<GetMultipleEpisodesResponse>('/episodes', 'get', { params: { ids, market }, headers, signal });
+                return request<GetMultipleEpisodesResponse>('/episodes', 'GET', { params: { ids, market }, headers, signal });
             },
             /**
              * Get Episode
              */
             async anEpisode(id: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<EpisodeObject>> {
-                return request<EpisodeObject>(`/episodes/${encodeURIComponent(id)}`, 'get', { params: { market }, headers, signal });
+                return request<EpisodeObject>(`/episodes/${encodeURIComponent(id)}`, 'GET', { params: { market }, headers, signal });
             },
             /**
              * Get Available Markets
              */
             async availableMarkets(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetAvailableMarketsResponse>> {
-                return request<GetAvailableMarketsResponse>('/markets', 'get', { headers, signal });
+                return request<GetAvailableMarketsResponse>('/markets', 'GET', { headers, signal });
             },
             /**
              * Get Current User's Profile
              */
             async currentUsersProfile(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PrivateUserObject>> {
-                return request<PrivateUserObject>('/me', 'get', { headers, signal });
+                return request<PrivateUserObject>('/me', 'GET', { headers, signal });
             },
             /**
              * Get User's Saved Albums
              */
             async usersSavedAlbums(limit?: number, offset?: number, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedAlbumObject>> {
-                return request<PagingSavedAlbumObject>('/me/albums', 'get', { params: { limit, offset, market }, headers, signal });
+                return request<PagingSavedAlbumObject>('/me/albums', 'GET', { params: { limit, offset, market }, headers, signal });
             },
             /**
              * Check User's Saved Albums
              */
             async checkUsersSavedAlbums(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
-                return request<boolean[]>('/me/albums/contains', 'get', { params: { ids }, headers, signal });
+                return request<boolean[]>('/me/albums/contains', 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get User's Saved Audiobooks
              */
             async usersSavedAudiobooks(limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSimplifiedAudiobookObject>> {
-                return request<PagingSimplifiedAudiobookObject>('/me/audiobooks', 'get', { params: { limit, offset }, headers, signal });
+                return request<PagingSimplifiedAudiobookObject>('/me/audiobooks', 'GET', { params: { limit, offset }, headers, signal });
             },
             /**
              * Check User's Saved Audiobooks
              */
             async checkUsersSavedAudiobooks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
-                return request<boolean[]>('/me/audiobooks/contains', 'get', { params: { ids }, headers, signal });
+                return request<boolean[]>('/me/audiobooks/contains', 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get User's Saved Episodes
              */
             async usersSavedEpisodes(market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedEpisodeObject>> {
-                return request<PagingSavedEpisodeObject>('/me/episodes', 'get', { params: { market, limit, offset }, headers, signal });
+                return request<PagingSavedEpisodeObject>('/me/episodes', 'GET', { params: { market, limit, offset }, headers, signal });
             },
             /**
              * Check User's Saved Episodes
              */
             async checkUsersSavedEpisodes(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
-                return request<boolean[]>('/me/episodes/contains', 'get', { params: { ids }, headers, signal });
+                return request<boolean[]>('/me/episodes/contains', 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get Followed Artists
              */
             async followed(type: "artist", after?: string, limit?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetFollowedResponse>> {
-                return request<GetFollowedResponse>('/me/following', 'get', { params: { type, after, limit }, headers, signal });
+                return request<GetFollowedResponse>('/me/following', 'GET', { params: { type, after, limit }, headers, signal });
             },
             /**
              * Check If User Follows Artists or Users
              */
             async checkCurrentUserFollows(type: "artist" | "user", ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
-                return request<boolean[]>('/me/following/contains', 'get', { params: { type, ids }, headers, signal });
+                return request<boolean[]>('/me/following/contains', 'GET', { params: { type, ids }, headers, signal });
             },
             /**
              * Get Playback State
              */
             async informationAboutTheUsersCurrentPlayback(market?: string, additionalTypes?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CurrentlyPlayingContextObject>> {
-                return request<CurrentlyPlayingContextObject>('/me/player', 'get', { params: { market, additional_types: additionalTypes }, headers, signal });
+                return request<CurrentlyPlayingContextObject>('/me/player', 'GET', { params: { market, additional_types: additionalTypes }, headers, signal });
             },
             /**
              * Get Currently Playing Track
              */
             async theUsersCurrentlyPlayingTrack(market?: string, additionalTypes?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CurrentlyPlayingContextObject>> {
-                return request<CurrentlyPlayingContextObject>('/me/player/currently-playing', 'get', { params: { market, additional_types: additionalTypes }, headers, signal });
+                return request<CurrentlyPlayingContextObject>('/me/player/currently-playing', 'GET', { params: { market, additional_types: additionalTypes }, headers, signal });
             },
             /**
              * Get Available Devices
              */
             async aUsersAvailableDevices(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetAusersAvailableDevicesResponse>> {
-                return request<GetAusersAvailableDevicesResponse>('/me/player/devices', 'get', { headers, signal });
+                return request<GetAusersAvailableDevicesResponse>('/me/player/devices', 'GET', { headers, signal });
             },
             /**
              * Get the User's Queue
              */
             async queue(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<QueueObject>> {
-                return request<QueueObject>('/me/player/queue', 'get', { headers, signal });
+                return request<QueueObject>('/me/player/queue', 'GET', { headers, signal });
             },
             /**
              * Get Recently Played Tracks
              */
             async recentlyPlayed(limit?: number, after?: number, before?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<CursorPagingPlayHistoryObject>> {
-                return request<CursorPagingPlayHistoryObject>('/me/player/recently-played', 'get', { params: { limit, after, before }, headers, signal });
+                return request<CursorPagingPlayHistoryObject>('/me/player/recently-played', 'GET', { params: { limit, after, before }, headers, signal });
             },
             /**
              * Get Current User's Playlists
              */
             async aListOfCurrentUsersPlaylists(limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingPlaylistObject>> {
-                return request<PagingPlaylistObject>('/me/playlists', 'get', { params: { limit, offset }, headers, signal });
+                return request<PagingPlaylistObject>('/me/playlists', 'GET', { params: { limit, offset }, headers, signal });
             },
             /**
              * Get User's Saved Shows
              */
             async usersSavedShows(limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedShowObject>> {
-                return request<PagingSavedShowObject>('/me/shows', 'get', { params: { limit, offset }, headers, signal });
+                return request<PagingSavedShowObject>('/me/shows', 'GET', { params: { limit, offset }, headers, signal });
             },
             /**
              * Check User's Saved Shows
              */
             async checkUsersSavedShows(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
-                return request<boolean[]>('/me/shows/contains', 'get', { params: { ids }, headers, signal });
+                return request<boolean[]>('/me/shows/contains', 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get User's Top Items
              */
             async usersTopArtistsAndTracks(type: "artists" | "tracks", timeRange?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingObject & { items?: (ArtistObject | TrackObject)[] }>> {
-                return request<PagingObject & { items?: (ArtistObject | TrackObject)[] }>(`/me/top/${encodeURIComponent(type)}`, 'get', { params: { time_range: timeRange, limit, offset }, headers, signal });
+                return request<PagingObject & { items?: (ArtistObject | TrackObject)[] }>(`/me/top/${encodeURIComponent(type)}`, 'GET', { params: { time_range: timeRange, limit, offset }, headers, signal });
             },
             /**
              * Get User's Saved Tracks
              */
             async usersSavedTracks(market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSavedTrackObject>> {
-                return request<PagingSavedTrackObject>('/me/tracks', 'get', { params: { market, limit, offset }, headers, signal });
+                return request<PagingSavedTrackObject>('/me/tracks', 'GET', { params: { market, limit, offset }, headers, signal });
             },
             /**
              * Check User's Saved Tracks
              */
             async checkUsersSavedTracks(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
-                return request<boolean[]>('/me/tracks/contains', 'get', { params: { ids }, headers, signal });
+                return request<boolean[]>('/me/tracks/contains', 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get Playlist
              */
             async playlist(playlistId: string, market?: string, fields?: string, additionalTypes?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PlaylistObject>> {
-                return request<PlaylistObject>(`/playlists/${encodeURIComponent(playlistId)}`, 'get', { params: { market, fields, additional_types: additionalTypes }, headers, signal });
+                return request<PlaylistObject>(`/playlists/${encodeURIComponent(playlistId)}`, 'GET', { params: { market, fields, additional_types: additionalTypes }, headers, signal });
             },
             /**
              * Check if Users Follow Playlist
              */
             async checkIfUserFollowsPlaylist(playlistId: string, ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<boolean[]>> {
-                return request<boolean[]>(`/playlists/${encodeURIComponent(playlistId)}/followers/contains`, 'get', { params: { ids }, headers, signal });
+                return request<boolean[]>(`/playlists/${encodeURIComponent(playlistId)}/followers/contains`, 'GET', { params: { ids }, headers, signal });
             },
             /**
              * Get Playlist Cover Image
              */
             async playlistCover(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ImageObject[]>> {
-                return request<ImageObject[]>(`/playlists/${encodeURIComponent(playlistId)}/images`, 'get', { headers, signal });
+                return request<ImageObject[]>(`/playlists/${encodeURIComponent(playlistId)}/images`, 'GET', { headers, signal });
             },
             /**
              * Get Playlist Items
              */
             async playlistsTracks(playlistId: string, market?: string, fields?: string, limit?: number, offset?: number, additionalTypes?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingPlaylistTrackObject>> {
-                return request<PagingPlaylistTrackObject>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'get', { params: { market, fields, limit, offset, additional_types: additionalTypes }, headers, signal });
+                return request<PagingPlaylistTrackObject>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'GET', { params: { market, fields, limit, offset, additional_types: additionalTypes }, headers, signal });
             },
             /**
              * Get Recommendations
              */
             async recommendations(seedArtists: string, seedGenres: string, seedTracks: string, limit?: number, market?: string, minAcousticness?: number, maxAcousticness?: number, targetAcousticness?: number, minDanceability?: number, maxDanceability?: number, targetDanceability?: number, minDurationMs?: number, maxDurationMs?: number, targetDurationMs?: number, minEnergy?: number, maxEnergy?: number, targetEnergy?: number, minInstrumentalness?: number, maxInstrumentalness?: number, targetInstrumentalness?: number, minKey?: number, maxKey?: number, targetKey?: number, minLiveness?: number, maxLiveness?: number, targetLiveness?: number, minLoudness?: number, maxLoudness?: number, targetLoudness?: number, minMode?: number, maxMode?: number, targetMode?: number, minPopularity?: number, maxPopularity?: number, targetPopularity?: number, minSpeechiness?: number, maxSpeechiness?: number, targetSpeechiness?: number, minTempo?: number, maxTempo?: number, targetTempo?: number, minTimeSignature?: number, maxTimeSignature?: number, targetTimeSignature?: number, minValence?: number, maxValence?: number, targetValence?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<RecommendationsObject>> {
-                return request<RecommendationsObject>('/recommendations', 'get', { params: { limit, market, seed_artists: seedArtists, seed_genres: seedGenres, seed_tracks: seedTracks, min_acousticness: minAcousticness, max_acousticness: maxAcousticness, target_acousticness: targetAcousticness, min_danceability: minDanceability, max_danceability: maxDanceability, target_danceability: targetDanceability, min_duration_ms: minDurationMs, max_duration_ms: maxDurationMs, target_duration_ms: targetDurationMs, min_energy: minEnergy, max_energy: maxEnergy, target_energy: targetEnergy, min_instrumentalness: minInstrumentalness, max_instrumentalness: maxInstrumentalness, target_instrumentalness: targetInstrumentalness, min_key: minKey, max_key: maxKey, target_key: targetKey, min_liveness: minLiveness, max_liveness: maxLiveness, target_liveness: targetLiveness, min_loudness: minLoudness, max_loudness: maxLoudness, target_loudness: targetLoudness, min_mode: minMode, max_mode: maxMode, target_mode: targetMode, min_popularity: minPopularity, max_popularity: maxPopularity, target_popularity: targetPopularity, min_speechiness: minSpeechiness, max_speechiness: maxSpeechiness, target_speechiness: targetSpeechiness, min_tempo: minTempo, max_tempo: maxTempo, target_tempo: targetTempo, min_time_signature: minTimeSignature, max_time_signature: maxTimeSignature, target_time_signature: targetTimeSignature, min_valence: minValence, max_valence: maxValence, target_valence: targetValence }, headers, signal });
+                return request<RecommendationsObject>('/recommendations', 'GET', { params: { limit, market, seed_artists: seedArtists, seed_genres: seedGenres, seed_tracks: seedTracks, min_acousticness: minAcousticness, max_acousticness: maxAcousticness, target_acousticness: targetAcousticness, min_danceability: minDanceability, max_danceability: maxDanceability, target_danceability: targetDanceability, min_duration_ms: minDurationMs, max_duration_ms: maxDurationMs, target_duration_ms: targetDurationMs, min_energy: minEnergy, max_energy: maxEnergy, target_energy: targetEnergy, min_instrumentalness: minInstrumentalness, max_instrumentalness: maxInstrumentalness, target_instrumentalness: targetInstrumentalness, min_key: minKey, max_key: maxKey, target_key: targetKey, min_liveness: minLiveness, max_liveness: maxLiveness, target_liveness: targetLiveness, min_loudness: minLoudness, max_loudness: maxLoudness, target_loudness: targetLoudness, min_mode: minMode, max_mode: maxMode, target_mode: targetMode, min_popularity: minPopularity, max_popularity: maxPopularity, target_popularity: targetPopularity, min_speechiness: minSpeechiness, max_speechiness: maxSpeechiness, target_speechiness: targetSpeechiness, min_tempo: minTempo, max_tempo: maxTempo, target_tempo: targetTempo, min_time_signature: minTimeSignature, max_time_signature: maxTimeSignature, target_time_signature: targetTimeSignature, min_valence: minValence, max_valence: maxValence, target_valence: targetValence }, headers, signal });
             },
             /**
              * Get Available Genre Seeds
              */
             async recommendationGenres(headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetRecommendationGenresResponse>> {
-                return request<GetRecommendationGenresResponse>('/recommendations/available-genre-seeds', 'get', { headers, signal });
+                return request<GetRecommendationGenresResponse>('/recommendations/available-genre-seeds', 'GET', { headers, signal });
             },
             /**
              * Search for Item
              */
             async search(q: string, type: ("album" | "artist" | "playlist" | "track" | "show" | "episode" | "audiobook")[], market?: string, limit?: number, offset?: number, includeExternal?: "audio", headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<SearchResponse>> {
-                return request<SearchResponse>('/search', 'get', { params: { q, type, market, limit, offset, include_external: includeExternal }, headers, signal });
+                return request<SearchResponse>('/search', 'GET', { params: { q, type, market, limit, offset, include_external: includeExternal }, headers, signal });
             },
             /**
              * Get Several Shows
              */
             async multipleShows(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetMultipleShowsResponse>> {
-                return request<GetMultipleShowsResponse>('/shows', 'get', { params: { market, ids }, headers, signal });
+                return request<GetMultipleShowsResponse>('/shows', 'GET', { params: { market, ids }, headers, signal });
             },
             /**
              * Get Show
              */
             async aShow(id: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ShowObject>> {
-                return request<ShowObject>(`/shows/${encodeURIComponent(id)}`, 'get', { params: { market }, headers, signal });
+                return request<ShowObject>(`/shows/${encodeURIComponent(id)}`, 'GET', { params: { market }, headers, signal });
             },
             /**
              * Get Show Episodes
              */
             async aShowsEpisodes(id: string, market?: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingSimplifiedEpisodeObject>> {
-                return request<PagingSimplifiedEpisodeObject>(`/shows/${encodeURIComponent(id)}/episodes`, 'get', { params: { market, limit, offset }, headers, signal });
+                return request<PagingSimplifiedEpisodeObject>(`/shows/${encodeURIComponent(id)}/episodes`, 'GET', { params: { market, limit, offset }, headers, signal });
             },
             /**
              * Get Several Tracks
              */
             async severalTracks(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<GetSeveralTracksResponse>> {
-                return request<GetSeveralTracksResponse>('/tracks', 'get', { params: { market, ids }, headers, signal });
+                return request<GetSeveralTracksResponse>('/tracks', 'GET', { params: { market, ids }, headers, signal });
             },
             /**
              * Get Track
              */
             async track(id: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<TrackObject>> {
-                return request<TrackObject>(`/tracks/${encodeURIComponent(id)}`, 'get', { params: { market }, headers, signal });
+                return request<TrackObject>(`/tracks/${encodeURIComponent(id)}`, 'GET', { params: { market }, headers, signal });
             },
             /**
              * Get User's Profile
              */
             async usersProfile(userId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PublicUserObject>> {
-                return request<PublicUserObject>(`/users/${encodeURIComponent(userId)}`, 'get', { headers, signal });
+                return request<PublicUserObject>(`/users/${encodeURIComponent(userId)}`, 'GET', { headers, signal });
             },
             /**
              * Get User's Playlists
              */
             async listUsersPlaylists(userId: string, limit?: number, offset?: number, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PagingPlaylistObject>> {
-                return request<PagingPlaylistObject>(`/users/${encodeURIComponent(userId)}/playlists`, 'get', { params: { limit, offset }, headers, signal });
+                return request<PagingPlaylistObject>(`/users/${encodeURIComponent(userId)}/playlists`, 'GET', { params: { limit, offset }, headers, signal });
             },
         },
         delete: {
@@ -1527,49 +1527,49 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
              * Remove Users' Saved Albums
              */
             async removeAlbumsUser(ids: string, body: RemoveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/albums', 'delete', { params: { ids }, body, headers, signal });
+                return request<void>('/me/albums', 'DELETE', { params: { ids }, body, headers, signal });
             },
             /**
              * Remove User's Saved Audiobooks
              */
             async removeAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/audiobooks', 'delete', { params: { ids }, headers, signal });
+                return request<void>('/me/audiobooks', 'DELETE', { params: { ids }, headers, signal });
             },
             /**
              * Remove User's Saved Episodes
              */
             async removeEpisodesUser(ids: string, body: RemoveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/episodes', 'delete', { params: { ids }, body, headers, signal });
+                return request<void>('/me/episodes', 'DELETE', { params: { ids }, body, headers, signal });
             },
             /**
              * Unfollow Artists or Users
              */
             async unfollowArtistsUsers(type: "artist" | "user", ids: string, body: UnfollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/following', 'delete', { params: { type, ids }, body, headers, signal });
+                return request<void>('/me/following', 'DELETE', { params: { type, ids }, body, headers, signal });
             },
             /**
              * Remove User's Saved Shows
              */
             async removeShowsUser(ids: string, market?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/shows', 'delete', { params: { ids, market }, headers, signal });
+                return request<void>('/me/shows', 'DELETE', { params: { ids, market }, headers, signal });
             },
             /**
              * Remove User's Saved Tracks
              */
             async removeTracksUser(ids: string, body: RemoveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/tracks', 'delete', { params: { ids }, body, headers, signal });
+                return request<void>('/me/tracks', 'DELETE', { params: { ids }, body, headers, signal });
             },
             /**
              * Unfollow Playlist
              */
             async unfollowPlaylist(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/playlists/${encodeURIComponent(playlistId)}/followers`, 'delete', { headers, signal });
+                return request<void>(`/playlists/${encodeURIComponent(playlistId)}/followers`, 'DELETE', { headers, signal });
             },
             /**
              * Remove Playlist Items
              */
             async removeTracksPlaylist(playlistId: string, body: RemoveTracksPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<RemoveTracksPlaylistResponse>> {
-                return request<RemoveTracksPlaylistResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'delete', { body, headers, signal });
+                return request<RemoveTracksPlaylistResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'DELETE', { body, headers, signal });
             },
         },
         put: {
@@ -1577,103 +1577,103 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
              * Save Albums for Current User
              */
             async saveAlbumsUser(ids: string, body: SaveAlbumsUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/albums', 'put', { params: { ids }, body, headers, signal });
+                return request<void>('/me/albums', 'PUT', { params: { ids }, body, headers, signal });
             },
             /**
              * Save Audiobooks for Current User
              */
             async saveAudiobooksUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/audiobooks', 'put', { params: { ids }, headers, signal });
+                return request<void>('/me/audiobooks', 'PUT', { params: { ids }, headers, signal });
             },
             /**
              * Save Episodes for Current User
              */
             async saveEpisodesUser(ids: string, body: SaveEpisodesUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/episodes', 'put', { params: { ids }, body, headers, signal });
+                return request<void>('/me/episodes', 'PUT', { params: { ids }, body, headers, signal });
             },
             /**
              * Follow Artists or Users
              */
             async followArtistsUsers(type: "artist" | "user", ids: string, body: FollowArtistsUsersRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/following', 'put', { params: { type, ids }, body, headers, signal });
+                return request<void>('/me/following', 'PUT', { params: { type, ids }, body, headers, signal });
             },
             /**
              * Transfer Playback
              */
             async transferAUsersPlayback(body: TransferAusersPlaybackRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player', 'put', { body, headers, signal });
+                return request<void>('/me/player', 'PUT', { body, headers, signal });
             },
             /**
              * Pause Playback
              */
             async pauseAUsersPlayback(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/pause', 'put', { params: { device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/pause', 'PUT', { params: { device_id: deviceId }, headers, signal });
             },
             /**
              * Start/Resume Playback
              */
             async startAUsersPlayback(body: StartAusersPlaybackRequest, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/play', 'put', { params: { device_id: deviceId }, body, headers, signal });
+                return request<void>('/me/player/play', 'PUT', { params: { device_id: deviceId }, body, headers, signal });
             },
             /**
              * Set Repeat Mode
              */
             async setRepeatModeOnUsersPlayback(state: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/repeat', 'put', { params: { state, device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/repeat', 'PUT', { params: { state, device_id: deviceId }, headers, signal });
             },
             /**
              * Seek To Position
              */
             async seekToPositionInCurrentlyPlayingTrack(positionMs: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/seek', 'put', { params: { position_ms: positionMs, device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/seek', 'PUT', { params: { position_ms: positionMs, device_id: deviceId }, headers, signal });
             },
             /**
              * Toggle Playback Shuffle
              */
             async toggleShuffleForUsersPlayback(state: boolean, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/shuffle', 'put', { params: { state, device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/shuffle', 'PUT', { params: { state, device_id: deviceId }, headers, signal });
             },
             /**
              * Set Playback Volume
              */
             async setVolumeForUsersPlayback(volumePercent: number, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/volume', 'put', { params: { volume_percent: volumePercent, device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/volume', 'PUT', { params: { volume_percent: volumePercent, device_id: deviceId }, headers, signal });
             },
             /**
              * Save Shows for Current User
              */
             async saveShowsUser(ids: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/shows', 'put', { params: { ids }, headers, signal });
+                return request<void>('/me/shows', 'PUT', { params: { ids }, headers, signal });
             },
             /**
              * Save Tracks for Current User
              */
             async saveTracksUser(ids: string, body: SaveTracksUserRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/tracks', 'put', { params: { ids }, body, headers, signal });
+                return request<void>('/me/tracks', 'PUT', { params: { ids }, body, headers, signal });
             },
             /**
              * Change Playlist Details
              */
             async changePlaylistDetails(playlistId: string, body: ChangePlaylistDetailsRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/playlists/${encodeURIComponent(playlistId)}`, 'put', { body, headers, signal });
+                return request<void>(`/playlists/${encodeURIComponent(playlistId)}`, 'PUT', { body, headers, signal });
             },
             /**
              * Follow Playlist
              */
             async followPlaylist(playlistId: string, body: FollowPlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/playlists/${encodeURIComponent(playlistId)}/followers`, 'put', { body, headers, signal });
+                return request<void>(`/playlists/${encodeURIComponent(playlistId)}/followers`, 'PUT', { body, headers, signal });
             },
             /**
              * Add Custom Playlist Cover Image
              */
             async uploadCustomPlaylistCover(playlistId: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>(`/playlists/${encodeURIComponent(playlistId)}/images`, 'put', { headers, signal });
+                return request<void>(`/playlists/${encodeURIComponent(playlistId)}/images`, 'PUT', { headers, signal });
             },
             /**
              * Update Playlist Items
              */
             async reorderOrReplacePlaylistsTracks(playlistId: string, body: ReorderOrReplacePlaylistsTracksRequest, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<ReorderOrReplacePlaylistsTracksResponse>> {
-                return request<ReorderOrReplacePlaylistsTracksResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'put', { params: { uris }, body, headers, signal });
+                return request<ReorderOrReplacePlaylistsTracksResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'PUT', { params: { uris }, body, headers, signal });
             },
         },
         post: {
@@ -1681,31 +1681,31 @@ export function createClient(options: ClientOptions = {}): SpotifyWebApiClient {
              * Skip To Next
              */
             async skipUsersPlaybackToNextTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/next', 'post', { params: { device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/next', 'POST', { params: { device_id: deviceId }, headers, signal });
             },
             /**
              * Skip To Previous
              */
             async skipUsersPlaybackToPreviousTrack(deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/previous', 'post', { params: { device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/previous', 'POST', { params: { device_id: deviceId }, headers, signal });
             },
             /**
              * Add Item to Playback Queue
              */
             async addToQueue(uri: string, deviceId?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<void>> {
-                return request<void>('/me/player/queue', 'post', { params: { uri, device_id: deviceId }, headers, signal });
+                return request<void>('/me/player/queue', 'POST', { params: { uri, device_id: deviceId }, headers, signal });
             },
             /**
              * Add Items to Playlist
              */
             async addTracksToPlaylist(playlistId: string, body: AddTracksToPlaylistRequest, position?: number, uris?: string, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<AddTracksToPlaylistResponse>> {
-                return request<AddTracksToPlaylistResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'post', { params: { position, uris }, body, headers, signal });
+                return request<AddTracksToPlaylistResponse>(`/playlists/${encodeURIComponent(playlistId)}/tracks`, 'POST', { params: { position, uris }, body, headers, signal });
             },
             /**
              * Create Playlist
              */
             async createPlaylist(userId: string, body: CreatePlaylistRequest, headers?: Record<string, string>, signal?: AbortSignal): Promise<ApiResult<PlaylistObject>> {
-                return request<PlaylistObject>(`/users/${encodeURIComponent(userId)}/playlists`, 'post', { body, headers, signal });
+                return request<PlaylistObject>(`/users/${encodeURIComponent(userId)}/playlists`, 'POST', { body, headers, signal });
             },
         },
     };
